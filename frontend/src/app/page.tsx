@@ -1,12 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Dashboard } from '../components/Dashboard';
-import { DashboardOverview } from '../types/survey';
-import { apiService } from '../utils/api';
+import { useEffect, useState } from "react";
+import { Dashboard } from "../components/Dashboard";
+import { DashboardOverview } from "../types/survey";
+import { apiService } from "../utils/api";
 
 export default function Home() {
-  const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,7 +18,9 @@ export default function Home() {
         const data = await apiService.getDashboardOverview();
         setDashboardData(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard');
+        setError(
+          err instanceof Error ? err.message : "Failed to load dashboard"
+        );
       } finally {
         setLoading(false);
       }

@@ -14,7 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "AgentKit Analytics de Encuestas",
-  description: "Plataforma de análisis y reportes de encuestas impulsada por IA",
+  description:
+    "Plataforma de análisis y reportes de encuestas impulsada por IA",
 };
 
 export default function RootLayout({
