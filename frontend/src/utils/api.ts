@@ -3,15 +3,36 @@ import { Survey, SurveyResponse, SurveyReport, DashboardOverview, SensoryReport 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 class ApiService {
+  private token: string | null = null;
+
+  setToken(token: string | null) {
+    this.token = token;
+  }
+
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
 
+    const isFormData =
+      typeof FormData !== 'undefined' && options?.body instanceof FormData;
+
+    const headers: HeadersInit = {
+      ...options?.headers,
+    };
+
+    // Only set JSON content-type when we are NOT sending FormData
+    if (!isFormData) {
+      (headers as any)['Content-Type'] =
+        (headers as any)['Content-Type'] || 'application/json';
+    }
+
+    // Add authorization token if available
+    if (this.token) {
+      (headers as any)['Authorization'] = `Bearer ${this.token}`;
+    }
+
     const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
       ...options,
+      headers,
     };
 
     try {
@@ -124,6 +145,84 @@ class ApiService {
     total: number;
   }> {
     return this.request('/sensory/evaluations');
+  }
+
+  // Reports planilla endpoints
+  async getGeneratedReports(filters?: {
+    type?: string;
+    region?: string;
+    country?: string;
+    project_name?: string;
+    month?: string;
+    year?: string;
+    authorization_status?: string;
+  }): Promise<{
+    reports: Array<any>;
+    total: number;
+    filters: any;
+  }> {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+    }
+    const queryString = params.toString();
+    return this.request(`/reports/generated${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getReportsByMonth(year: number, month: number, filters?: {
+    region?: string;
+    country?: string;
+    project_name?: string;
+  }): Promise<{
+    reports: Array<any>;
+    total: number;
+    month: string;
+    year: string;
+  }> {
+    const params = new URLSearchParams({
+      year: year.toString(),
+      month: month.toString(),
+    });
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+    }
+    return this.request(`/reports/by-month?${params.toString()}`);
+  }
+
+  async checkWinningFormula(evaluationId: string, threshold: number = 70): Promise<{
+    evaluation_id: string;
+    winner: {
+      product_name: string;
+      percentage: number;
+      threshold: number;
+      meets_threshold: boolean;
+    };
+    all_products: Array<any>;
+    recommendation: string;
+  }> {
+    return this.request(`/reports/sensory/${evaluationId}/winning-formula?threshold=${threshold}`);
+  }
+
+  async authorizeReport(reportId: string, data: {
+    authorization_status: 'approved' | 'rejected' | 'pending';
+    winning_formula_threshold?: number;
+    notes?: string;
+    authorized_by?: string;
+    report_type?: string;
+  }): Promise<{
+    message: string;
+    report_id: string;
+    authorization_status: string;
+    winning_formula_threshold: number;
+  }> {
+    return this.request(`/reports/${reportId}/authorize`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 }
 

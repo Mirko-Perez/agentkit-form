@@ -43,13 +43,18 @@ export interface SensoryPreference {
 
 export interface SensoryEvaluation {
   id: string;
-  survey_id: string;
+  survey_id?: string;
+  evaluation_id?: string; // For sensory evaluations
   panelist_id: string;
   panelist_name?: string;
   panelist_email?: string;
   preferences: SensoryPreference[]; // Array of 3 preferences
   submitted_at: Date;
   metadata?: Record<string, any>;
+  // New fields for region and project
+  region?: string;
+  country?: string;
+  project_name?: string;
 }
 
 export interface SensoryResults {

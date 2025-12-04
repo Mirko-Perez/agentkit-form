@@ -10,6 +10,7 @@ import surveyRoutes from './routes/survey.routes';
 import reportRoutes from './routes/report.routes';
 import importRoutes from './routes/import.routes';
 import sensoryRoutes from './routes/sensory.routes';
+import authRoutes from './routes/auth.routes';
 
 // Load environment variables
 dotenv.config();
@@ -45,6 +46,7 @@ app.get('/health', (req, res) => {
 });
 
 // API routes
+app.use('/api/auth', authRoutes);
 app.use('/api/surveys', surveyRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/import', importRoutes);

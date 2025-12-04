@@ -97,6 +97,15 @@ export interface SensoryReport {
     top_positive_comments: string[];
     top_negative_comments: string[];
     common_themes: string[];
+    product_specific_feedback?: {
+      product_id: string;
+      product_name: string;
+      product_code?: string;
+      first_place_comments: string[];
+      second_place_comments: string[];
+      third_place_comments: string[];
+      total_comments: number;
+    }[];
   };
   recommendations: string[];
   generated_at: string;

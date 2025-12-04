@@ -1,13 +1,33 @@
 import { Request, Response } from 'express';
 import { query } from '../config/database';
-import { SurveyReport, QuestionStats, SensoryReport, SensoryPreferenceStats, SensoryStatisticalAnalysis } from '../models/Report';
+import {
+  SurveyReport,
+  QuestionStats,
+  SensoryReport,
+  SensoryPreferenceStats,
+  SensoryStatisticalAnalysis,
+} from '../models/Report';
 import { AgentKitService } from '../utils/agentKit';
 import { SensoryEvaluation, SensoryProduct } from '../models/Survey';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+/**
+ * OpenAI client for sensory insights in this controller.
+ * We initialize it conditionally to avoid crashing when OPENAI_API_KEY is not set.
+ */
+const openaiApiKey = process.env.OPENAI_API_KEY;
+let openai: OpenAI | null = null;
+
+if (openaiApiKey) {
+  openai = new OpenAI({
+    apiKey: openaiApiKey,
+  });
+} else {
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[ReportController] OPENAI_API_KEY is not set. Sensory AI insights will use basic fallbacks.'
+  );
+}
 
 export class ReportController {
   /**
@@ -192,11 +212,12 @@ export class ReportController {
       // Perform statistical analysis (Friedman test)
       const statisticalAnalysis = this.performStatisticalAnalysis(preferenceStats, evaluations.length);
 
-      // Extract qualitative feedback
-      const qualitativeFeedback = this.extractQualitativeFeedback(evaluations);
+      // Extract qualitative feedback (organized by product and position)
+      const qualitativeFeedback = this.extractQualitativeFeedback(evaluations, products);
 
-      // Generate recommendations
-      const recommendations = this.generateRecommendations(preferenceStats, statisticalAnalysis);
+      // Generate recommendations (with threshold check)
+      const threshold = 70; // Default threshold, can be configured
+      const recommendations = this.generateRecommendations(preferenceStats, statisticalAnalysis, threshold);
 
       // Generate AI insights for sensory evaluation
       let insights: string[] = [];
@@ -210,6 +231,22 @@ export class ReportController {
           'Se recomienda considerar los comentarios cualitativos para futuras mejoras.'
         ];
       }
+
+      // Get region, country, project from first evaluation (assuming all are from same project)
+      const firstEvaluation = evaluations[0];
+      const region = firstEvaluation.region || null;
+      const country = firstEvaluation.country || null;
+      const projectName = firstEvaluation.project_name || null;
+
+      // Determine winning formula (default threshold: 70%)
+      const defaultThreshold = 70;
+      const winner = preferenceStats.length > 0 ? preferenceStats[0] : null;
+      const winningFormula = winner ? {
+        product_name: winner.product_name,
+        percentage: winner.percentage,
+        meets_threshold: winner.percentage >= defaultThreshold,
+        threshold: defaultThreshold
+      } : undefined;
 
       const report: SensoryReport = {
         evaluation_id,
@@ -228,7 +265,12 @@ export class ReportController {
         qualitative_feedback: qualitativeFeedback,
         recommendations,
         insights,
-        generated_at: new Date()
+        generated_at: new Date(),
+        region: region || undefined,
+        country: country || undefined,
+        project_name: projectName || undefined,
+        winning_formula: winningFormula,
+        authorization_status: 'pending'
       };
 
       // Save the generated report to database for future use
@@ -247,31 +289,242 @@ export class ReportController {
   }
 
   /**
-   * Get list of generated reports for traceability
+   * Get list of generated reports for traceability (Planilla de Reportes)
+   * Supports filters by region, country, project, month, year
    */
   static async getGeneratedReports(req: Request, res: Response) {
     try {
-      const { type } = req.query;
+      const { 
+        type, 
+        region, 
+        country, 
+        project_name,
+        month,
+        year,
+        authorization_status 
+      } = req.query;
 
-      let queryStr = 'SELECT id, evaluation_id, report_type, generated_at, expires_at, is_valid FROM generated_reports';
-      let params: any[] = [];
+      // Build query with filters
+      let queryStr = `
+        SELECT 
+          rp.*,
+          gr.report_data
+        FROM reports_planilla rp
+        JOIN generated_reports gr ON rp.report_id = gr.id
+        WHERE 1=1
+      `;
+      const params: any[] = [];
+      let paramIndex = 1;
 
       if (type) {
-        queryStr += ' WHERE report_type = $1';
+        queryStr += ` AND rp.report_type = $${paramIndex}`;
         params.push(type);
+        paramIndex++;
       }
 
-      queryStr += ' ORDER BY generated_at DESC';
+      if (region) {
+        queryStr += ` AND rp.region = $${paramIndex}`;
+        params.push(region);
+        paramIndex++;
+      }
+
+      if (country) {
+        queryStr += ` AND rp.country = $${paramIndex}`;
+        params.push(country);
+        paramIndex++;
+      }
+
+      if (project_name) {
+        queryStr += ` AND rp.project_name = $${paramIndex}`;
+        params.push(project_name);
+        paramIndex++;
+      }
+
+      if (month) {
+        queryStr += ` AND rp.report_month = $${paramIndex}`;
+        params.push(parseInt(month as string));
+        paramIndex++;
+      }
+
+      if (year) {
+        queryStr += ` AND rp.report_year = $${paramIndex}`;
+        params.push(parseInt(year as string));
+        paramIndex++;
+      }
+
+      if (authorization_status) {
+        queryStr += ` AND rp.authorization_status = $${paramIndex}`;
+        params.push(authorization_status);
+        paramIndex++;
+      }
+
+      queryStr += ' ORDER BY gr.generated_at DESC';
 
       const result = await query(queryStr, params);
 
       res.json({
         reports: result.rows,
-        total: result.rowCount
+        total: result.rowCount,
+        filters: {
+          type: type || null,
+          region: region || null,
+          country: country || null,
+          project_name: project_name || null,
+          month: month || null,
+          year: year || null,
+          authorization_status: authorization_status || null
+        }
       });
     } catch (error) {
       console.error('Error fetching generated reports:', error);
       res.status(500).json({ error: 'Failed to fetch generated reports' });
+    }
+  }
+
+  /**
+   * Get reports by month (helper endpoint)
+   */
+  static async getReportsByMonth(req: Request, res: Response) {
+    try {
+      const { year, month, region, country, project_name } = req.query;
+
+      if (!year || !month) {
+        return res.status(400).json({ error: 'Year and month are required' });
+      }
+
+      const result = await query(
+        'SELECT * FROM get_reports_by_month($1, $2, $3, $4, $5)',
+        [
+          parseInt(year as string),
+          parseInt(month as string),
+          region || null,
+          country || null,
+          project_name || null
+        ]
+      );
+
+      res.json({
+        reports: result.rows,
+        total: result.rowCount,
+        month: month,
+        year: year
+      });
+    } catch (error) {
+      console.error('Error fetching reports by month:', error);
+      res.status(500).json({ error: 'Failed to fetch reports by month' });
+    }
+  }
+
+  /**
+   * Check if a product meets the winning formula threshold
+   */
+  static async checkWinningFormula(req: Request, res: Response) {
+    try {
+      const { evaluation_id } = req.params;
+      const { threshold = 70 } = req.query; // Default 70%, can be 80%
+
+      // Get the sensory report
+      const reportResult = await query(
+        'SELECT report_data FROM generated_reports WHERE evaluation_id = $1 AND report_type = $2 AND is_valid = true ORDER BY generated_at DESC LIMIT 1',
+        [evaluation_id, 'sensory']
+      );
+
+      if (reportResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Sensory report not found' });
+      }
+
+      const reportData = reportResult.rows[0].report_data;
+      const preferenceAnalysis = reportData.preference_analysis || [];
+
+      // Find the product with highest percentage
+      const winner = preferenceAnalysis.reduce((max: any, current: any) => {
+        return current.percentage > max.percentage ? current : max;
+      }, preferenceAnalysis[0] || { percentage: 0 });
+
+      const thresholdNum = parseFloat(threshold as string);
+      const isWinningFormula = winner.percentage >= thresholdNum;
+
+      res.json({
+        evaluation_id,
+        winner: {
+          product_name: winner.product_name,
+          percentage: winner.percentage,
+          threshold: thresholdNum,
+          meets_threshold: isWinningFormula
+        },
+        all_products: preferenceAnalysis.map((p: any) => ({
+          product_name: p.product_name,
+          percentage: p.percentage,
+          meets_threshold: p.percentage >= thresholdNum
+        })),
+        recommendation: isWinningFormula
+          ? `${winner.product_name} es la fórmula ganadora con ${winner.percentage.toFixed(1)}% de preferencia (umbral: ${thresholdNum}%)`
+          : `Ningún producto alcanza el umbral del ${thresholdNum}%. El más preferido es ${winner.product_name} con ${winner.percentage.toFixed(1)}%`
+      });
+    } catch (error) {
+      console.error('Error checking winning formula:', error);
+      res.status(500).json({ error: 'Failed to check winning formula' });
+    }
+  }
+
+  /**
+   * Authorize a report (approve/reject)
+   */
+  static async authorizeReport(req: Request, res: Response) {
+    try {
+      const { report_id } = req.params;
+      const { authorization_status, winning_formula_threshold, notes, authorized_by } = req.body;
+
+      if (!authorization_status || !['approved', 'rejected', 'pending'].includes(authorization_status)) {
+        return res.status(400).json({ error: 'Invalid authorization status' });
+      }
+
+      // Check if authorization already exists
+      const existingAuth = await query(
+        'SELECT * FROM report_authorizations WHERE report_id = $1',
+        [report_id]
+      );
+
+      if (existingAuth.rows.length > 0) {
+        // Update existing authorization
+        await query(
+          `UPDATE report_authorizations 
+           SET authorization_status = $1, 
+               winning_formula_threshold = COALESCE($2, winning_formula_threshold),
+               notes = COALESCE($3, notes),
+               authorized_by = COALESCE($4, authorized_by),
+               authorized_at = CASE WHEN $1 != 'pending' THEN CURRENT_TIMESTAMP ELSE authorized_at END
+           WHERE report_id = $5`,
+          [authorization_status, winning_formula_threshold || 70, notes, authorized_by, report_id]
+        );
+      } else {
+        // Create new authorization
+        await query(
+          `INSERT INTO report_authorizations 
+           (id, report_id, report_type, authorization_status, winning_formula_threshold, notes, authorized_by, authorized_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            `auth_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            report_id,
+            req.body.report_type || 'sensory',
+            authorization_status,
+            winning_formula_threshold || 70,
+            notes || null,
+            authorized_by || null,
+            authorization_status !== 'pending' ? new Date() : null
+          ]
+        );
+      }
+
+      res.json({
+        message: 'Report authorization updated successfully',
+        report_id,
+        authorization_status,
+        winning_formula_threshold: winning_formula_threshold || 70
+      });
+    } catch (error) {
+      console.error('Error authorizing report:', error);
+      res.status(500).json({ error: 'Failed to authorize report' });
     }
   }
 
@@ -532,38 +785,84 @@ export class ReportController {
   }
 
   /**
-   * Extract qualitative feedback from evaluations
+   * Extract qualitative feedback from evaluations organized by position
    */
-  private static extractQualitativeFeedback(evaluations: SensoryEvaluation[]) {
+  private static extractQualitativeFeedback(evaluations: SensoryEvaluation[], products: SensoryProduct[]) {
+    // Organize comments by product and position
+    const commentsByProduct: Record<string, {
+      first_place: string[];
+      second_place: string[];
+      third_place: string[];
+      all: string[];
+    }> = {};
+
+    // Initialize for each product
+    products.forEach(product => {
+      commentsByProduct[product.id] = {
+        first_place: [],
+        second_place: [],
+        third_place: [],
+        all: []
+      };
+    });
+
+    // Collect all comments
     const allComments: string[] = [];
 
     evaluations.forEach(evaluation => {
       evaluation.preferences.forEach(preference => {
         if (preference.reason) {
           allComments.push(preference.reason);
+          const productId = preference.product_id;
+          
+          if (commentsByProduct[productId]) {
+            commentsByProduct[productId].all.push(preference.reason);
+            
+            if (preference.position === 1) {
+              commentsByProduct[productId].first_place.push(preference.reason);
+            } else if (preference.position === 2) {
+              commentsByProduct[productId].second_place.push(preference.reason);
+            } else if (preference.position === 3) {
+              commentsByProduct[productId].third_place.push(preference.reason);
+            }
+          }
         }
       });
     });
 
-    // Simple categorization (in a real implementation, use NLP)
-    const positiveComments = allComments.filter(comment =>
-      comment.toLowerCase().includes('bueno') ||
-      comment.toLowerCase().includes('excelente') ||
-      comment.toLowerCase().includes('mejor') ||
-      comment.toLowerCase().includes('gusta')
-    );
+    // Categorize comments (simple keyword-based, could be improved with NLP)
+    const positiveKeywords = ['bueno', 'excelente', 'mejor', 'gusta', 'rico', 'sabroso', 'agradable', 'perfecto', 'delicioso'];
+    const negativeKeywords = ['malo', 'peor', 'regular', 'mejorar', 'desagradable', 'mal', 'no gusta', 'insípido'];
 
-    const negativeComments = allComments.filter(comment =>
-      comment.toLowerCase().includes('malo') ||
-      comment.toLowerCase().includes('peor') ||
-      comment.toLowerCase().includes('regular') ||
-      comment.toLowerCase().includes('mejorar')
-    );
+    const positiveComments = allComments.filter(comment => {
+      const lower = comment.toLowerCase();
+      return positiveKeywords.some(keyword => lower.includes(keyword));
+    });
+
+    const negativeComments = allComments.filter(comment => {
+      const lower = comment.toLowerCase();
+      return negativeKeywords.some(keyword => lower.includes(keyword));
+    });
+
+    // Build product-specific feedback
+    const productFeedback = products.map(product => {
+      const feedback = commentsByProduct[product.id];
+      return {
+        product_id: product.id,
+        product_name: product.name,
+        product_code: product.code,
+        first_place_comments: feedback.first_place,
+        second_place_comments: feedback.second_place,
+        third_place_comments: feedback.third_place,
+        total_comments: feedback.all.length
+      };
+    });
 
     return {
-      top_positive_comments: positiveComments.slice(0, 5),
-      top_negative_comments: negativeComments.slice(0, 5),
-      common_themes: ['sabor', 'textura', 'color', 'aroma'] // Simplified
+      top_positive_comments: positiveComments.slice(0, 10),
+      top_negative_comments: negativeComments.slice(0, 10),
+      product_specific_feedback: productFeedback,
+      common_themes: ['sabor', 'textura', 'color', 'aroma', 'consistencia', 'apariencia']
     };
   }
 
@@ -572,13 +871,22 @@ export class ReportController {
    */
   private static generateRecommendations(
     preferenceStats: SensoryPreferenceStats[],
-    statisticalAnalysis: SensoryStatisticalAnalysis
+    statisticalAnalysis: SensoryStatisticalAnalysis,
+    threshold: number = 70
   ): string[] {
     const recommendations: string[] = [];
 
     if (preferenceStats.length > 0) {
       const winner = preferenceStats[0];
-      recommendations.push(`${winner.product_name} es el producto preferido con ${winner.percentage.toFixed(1)}% de preferencia.`);
+      const meetsThreshold = winner.percentage >= threshold;
+      
+      if (meetsThreshold) {
+        recommendations.push(`✅ ${winner.product_name} es la FÓRMULA GANADORA con ${winner.percentage.toFixed(1)}% de preferencia (umbral: ${threshold}%).`);
+        recommendations.push(`Se recomienda autorizar ${winner.product_name} como fórmula ganadora para producción.`);
+      } else {
+        recommendations.push(`⚠️ ${winner.product_name} es el producto más preferido con ${winner.percentage.toFixed(1)}% de preferencia, pero NO alcanza el umbral del ${threshold}%.`);
+        recommendations.push(`Se recomienda revisar la fórmula o considerar un umbral más bajo.`);
+      }
     }
 
     if (statisticalAnalysis.overall_significance) {
@@ -600,7 +908,7 @@ export class ReportController {
   }
 
   /**
-   * Generate AI insights for sensory evaluation
+   * Generate AI insights for sensory evaluation using the structured prompt format
    */
   private static async generateSensoryInsights(
     evaluations: SensoryEvaluation[],
@@ -608,62 +916,125 @@ export class ReportController {
     preferenceStats: SensoryPreferenceStats[],
     statisticalAnalysis: any
   ): Promise<string[]> {
+    // If OpenAI is not configured, return a safe fallback so the backend doesn't crash
+    if (!openai) {
+      return [
+        'El análisis avanzado con IA para evaluación sensorial está deshabilitado porque no se configuró OPENAI_API_KEY.',
+        'Los resultados mostrados se basan en estadísticas internas (ranking, prueba de Friedman y comentarios cualitativos).',
+        'Configura la variable de entorno OPENAI_API_KEY en el backend para habilitar insights automáticos detallados.',
+      ];
+    }
+
     try {
-      const productStats = preferenceStats.map(stat =>
-        `${stat.product_name}: ${stat.first_place_count} primeros lugares, ${stat.second_place_count} segundos, ${stat.third_place_count} terceros (${stat.percentage.toFixed(1)}% preferencia)`
-      ).join('\n');
+      // Organize comments by product and position (1°, 2°, 3°)
+      const commentsByProductAndPosition: Record<string, {
+        first: string[];
+        second: string[];
+        third: string[];
+      }> = {};
 
-      const panelistComments = evaluations.slice(0, 8).map((evaluation, i) => {
-        const comments = evaluation.preferences.map(p => `${p.product_id}: ${p.reason || 'Sin comentario'}`).join('; ');
-        return `Panelista ${i + 1}: ${comments}`;
-      }).join('\n');
+      // Initialize structure for each product
+      products.forEach(product => {
+        commentsByProductAndPosition[product.id] = {
+          first: [],
+          second: [],
+          third: []
+        };
+      });
 
-      const prompt = `Analiza estos resultados de evaluación sensorial y proporciona insights clave en ESPAÑOL:
+      // Collect comments organized by product and position
+      evaluations.forEach(evaluation => {
+        evaluation.preferences.forEach(preference => {
+          const productId = preference.product_id;
+          const position = preference.position;
+          const reason = preference.reason || 'Sin comentario';
 
-Productos evaluados: ${products.map(p => p.name).join(', ')}
-Número de panelistas: ${evaluations.length}
+          if (commentsByProductAndPosition[productId]) {
+            if (position === 1) {
+              commentsByProductAndPosition[productId].first.push(reason);
+            } else if (position === 2) {
+              commentsByProductAndPosition[productId].second.push(reason);
+            } else if (position === 3) {
+              commentsByProductAndPosition[productId].third.push(reason);
+            }
+          }
+        });
+      });
 
-Estadísticas de preferencias:
-${productStats}
+      // Build the structured prompt following the format provided
+      let prompt = `Actúa como experto en investigaciones de mercado y evaluaciones sensoriales. Justo ahora debes entregar un informe con un resumen comparativo de los comentarios más repetitivos de cada muestra que se sometió a una evaluación sensorial de preferencia por ordenamiento.
 
-Comentarios de panelistas:
-${panelistComments}
+Se realizó una evaluación sensorial de preferencia por ordenamiento entre unas muestras. Las muestras fueron presentadas en incógnito con los códigos: ${products.map(p => p.code || p.name).join(', ')} y se les pidió que ordenaran las muestras desde la que más le gustó hasta la que menos le gustó y que explicaran el por qué de su elección.
 
-Análisis estadístico: ${statisticalAnalysis.friedman_test.significant ? 'Diferencias significativas encontradas' : 'No hay diferencias significativas'}
+Total de panelistas: ${evaluations.length}
 
-Por favor proporciona 4-6 insights específicos sobre:
-1. Producto más preferido y por qué
-2. Comentarios más comunes sobre los productos
-3. Fortalezas y debilidades identificadas
-4. Recomendaciones basadas en los resultados
-5. Tendencias o patrones observados
-6. Confianza en los resultados estadísticos`;
+`;
+
+      // Add comments for each product organized by position
+      products.forEach(product => {
+        const productCode = product.code || product.name;
+        const comments = commentsByProductAndPosition[product.id];
+        const stats = preferenceStats.find(s => s.product_id === product.id);
+
+        prompt += `Muestra ${productCode}
+- 1° lugar: ${stats?.first_place_count || 0} panelistas
+- 2° lugar: ${stats?.second_place_count || 0} panelistas  
+- 3° lugar: ${stats?.third_place_count || 0} panelistas
+- Preferencia total: ${stats?.percentage.toFixed(1) || 0}%
+
+Comentarios de quienes la ubicaron en 1° lugar (positivos):
+${comments.first.length > 0 ? comments.first.join('\n') : 'No hay comentarios'}
+
+Comentarios de quienes la ubicaron en 2° lugar (neutros / balanceados):
+${comments.second.length > 0 ? comments.second.join('\n') : 'No hay comentarios'}
+
+Comentarios de quienes la ubicaron en 3° lugar (negativos):
+${comments.third.length > 0 ? comments.third.join('\n') : 'No hay comentarios'}
+
+`;
+      });
+
+      prompt += `\nAnálisis estadístico: ${statisticalAnalysis.friedman_test.significant ? 'Diferencias significativas encontradas (p < 0.05)' : 'No hay diferencias significativas entre las muestras'}
+
+Por favor proporciona:
+1. Un resumen ejecutivo comparativo de los comentarios más repetitivos
+2. Identificación de patrones comunes en comentarios positivos, neutros y negativos
+3. Fortalezas y debilidades de cada muestra
+4. Recomendaciones específicas basadas en los comentarios cualitativos
+5. Análisis de la consistencia de los comentarios con los resultados estadísticos`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4-turbo-preview",
         messages: [
           {
             role: "system",
-            content: "Eres un experto analista sensorial especializado en evaluación de productos. Proporciona insights claros y accionables en ESPAÑOL basados en datos de evaluación sensorial."
+            content: "Eres un experto en investigaciones de mercado y evaluaciones sensoriales. Proporciona informes estructurados y profesionales en ESPAÑOL basados en análisis de comentarios cualitativos y datos estadísticos de evaluaciones sensoriales."
           },
           {
             role: "user",
             content: prompt
           }
         ],
-        max_tokens: 1000,
+        max_tokens: 2000,
         temperature: 0.7
       });
 
       const insightsText = completion.choices[0]?.message?.content || '';
 
-      // Parse insights similar to the survey insights parsing
+      // Parse insights - try to split by numbered points or sections
       const insights = insightsText
-        .split(/\d+\.|\*\s*|•\s*/)
+        .split(/\d+\.|\*\s*|•\s*|##|###/)
         .map(insight => insight.trim())
-        .filter(insight => insight.length > 10);
+        .filter(insight => insight.length > 20); // Filter out very short items
 
-      return insights.length > 0 ? insights : [insightsText];
+      // If parsing didn't work well, return the full text as a single insight
+      if (insights.length === 0 || insights.length === 1) {
+        // Try to split by paragraphs
+        const paragraphs = insightsText.split(/\n\n+/).filter(p => p.trim().length > 20);
+        return paragraphs.length > 0 ? paragraphs : [insightsText];
+      }
+
+      return insights;
     } catch (error) {
       console.error('Error generating sensory insights:', error);
       return [

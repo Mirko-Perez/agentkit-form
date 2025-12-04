@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Providers } from "../components/Providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,10 +12,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "AgentKit Analytics de Encuestas",
-  description:
-    "Plataforma de análisis y reportes de encuestas impulsada por IA",
+  description: "Plataforma de análisis y reportes de encuestas impulsada por IA",
 };
 
 export default function RootLayout({
@@ -24,11 +23,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="es">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

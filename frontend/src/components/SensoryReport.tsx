@@ -1,5 +1,5 @@
 import React from "react";
-import { SensoryReport, SensoryPreferenceStats } from "../types/survey";
+import { SensoryReport } from "../types/survey";
 
 interface SensoryReportProps {
   report: SensoryReport;
@@ -8,6 +8,20 @@ interface SensoryReportProps {
 export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
   report,
 }) => {
+  const sortedByPreference = [...report.preference_analysis].sort(
+    (a, b) => b.percentage - a.percentage
+  );
+
+  const topProducts = sortedByPreference.slice(0, 2);
+
+  const getProductMeta = (productId: string) =>
+    report.products.find((p) => p.id === productId);
+
+  const getProductFeedback = (productId: string) =>
+    report.qualitative_feedback.product_specific_feedback?.find(
+      (p) => p.product_id === productId
+    );
+
   const getPositionColor = (position: number) => {
     switch (position) {
       case 1:
@@ -102,6 +116,141 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
             <div className="text-sm text-gray-500">Significativas</div>
           </div>
         </div>
+
+        {/* Paired Preference Summary (Slide-style view) */}
+        {topProducts.length >= 2 && (
+          <div className="bg-white p-8 rounded-3xl shadow-2xl border border-gray-100">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              {/* Left: Bars + text */}
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                  Resultados evaluación sensorial de preferencia
+                </h3>
+                <p className="text-gray-700 mb-6">
+                  Se realizó una evaluación sensorial de preferencia donde se
+                  comparó el desempeño de las muestras más relevantes entre sí.
+                </p>
+
+                <div className="space-y-4">
+                  {topProducts.map((p) => {
+                    const meta = getProductMeta(p.product_id);
+                    return (
+                      <div
+                        key={p.product_id}
+                        className="flex items-center space-x-4"
+                      >
+                        <div className="w-20 text-right">
+                          <div className="font-semibold text-gray-800">
+                            {meta?.name || p.product_name}
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
+                            <div
+                              className={`h-6 rounded-full ${
+                                p === topProducts[0]
+                                  ? "bg-gradient-to-r from-green-500 to-emerald-600"
+                                  : "bg-gradient-to-r from-blue-500 to-indigo-600"
+                              }`}
+                              style={{ width: `${p.percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="w-16 text-right font-bold text-gray-900">
+                          {p.percentage.toFixed(0)}%
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-6 text-sm text-gray-600 italic">
+                  {report.statistical_analysis.friedman_test.significant ? (
+                    <span>
+                      Hay diferencias{" "}
+                      <strong>estadísticamente significativas</strong> entre las
+                      muestras evaluadas (p{" "}
+                      {report.statistical_analysis.friedman_test.p_value}).
+                    </span>
+                  ) : (
+                    <span>
+                      No existe diferencia{" "}
+                      <strong>estadísticamente significativa</strong> entre las
+                      muestras.
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Right: Most frequent comments per top 2 products */}
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-6">
+                  Comentarios más frecuentes
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {topProducts.map((p) => {
+                    const meta = getProductMeta(p.product_id);
+                    const feedback = getProductFeedback(p.product_id);
+                    const positives = (
+                      feedback?.first_place_comments || []
+                    ).slice(0, 3);
+                    const negatives = (
+                      feedback?.third_place_comments || []
+                    ).slice(0, 3);
+
+                    return (
+                      <div key={p.product_id} className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-3 h-3 rounded-full bg-green-500" />
+                          <h4 className="font-semibold text-gray-900">
+                            {meta?.name || p.product_name}
+                          </h4>
+                        </div>
+
+                        <div className="space-y-2">
+                          {positives.length > 0 && (
+                            <ul className="space-y-1">
+                              {positives.map((c, idx) => (
+                                <li
+                                  key={idx}
+                                  className="flex items-start text-sm text-gray-700"
+                                >
+                                  <span className="mr-2 text-green-500">✔</span>
+                                  <span>{c}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+
+                          {negatives.length > 0 && (
+                            <ul className="space-y-1 mt-2">
+                              {negatives.map((c, idx) => (
+                                <li
+                                  key={idx}
+                                  className="flex items-start text-sm text-gray-700"
+                                >
+                                  <span className="mr-2 text-red-500">✘</span>
+                                  <span>{c}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+
+                          {positives.length === 0 && negatives.length === 0 && (
+                            <p className="text-sm text-gray-500">
+                              No hay comentarios registrados para esta muestra.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Preference Rankings */}
         <div className="bg-white p-8 rounded-3xl shadow-2xl border border-gray-100">
@@ -543,7 +692,7 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                 </span>
               </div>
               <p className="text-gray-700 italic text-sm">
-                "La de Fritz tiene mejor sabor y textura"
+                &quot;La de Fritz tiene mejor sabor y textura&quot;
               </p>
               <div className="mt-2 flex items-center text-xs text-gray-500">
                 <span className="font-medium">1er:</span>{" "}
@@ -567,7 +716,7 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                 </span>
               </div>
               <p className="text-gray-700 italic text-sm">
-                "Osole tiene mejor color"
+                &quot;Osole tiene mejor color&quot;
               </p>
               <div className="mt-2 flex items-center text-xs text-gray-500">
                 <span className="font-medium">1er:</span>{" "}
@@ -591,7 +740,7 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                 </span>
               </div>
               <p className="text-gray-700 italic text-sm">
-                "La de Fritz sabe más natural"
+                &quot;La de Fritz sabe más natural&quot;
               </p>
               <div className="mt-2 flex items-center text-xs text-gray-500">
                 <span className="font-medium">1er:</span>{" "}
@@ -607,79 +756,37 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
           </div>
         </div>
 
-        {/* AI Insights with better contrast */}
+        {/* AI Insights - Briefing style (single structured report) */}
         {report.insights && report.insights.length > 0 && (
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-10 rounded-3xl text-white relative overflow-hidden">
-            {/* Background pattern for better contrast */}
-            <div className="absolute inset-0 opacity-10">
-              <svg
-                className="w-full h-full"
-                viewBox="0 0 100 100"
-                preserveAspectRatio="none"
-              >
-                <defs>
-                  <pattern
-                    id="insights-pattern"
-                    x="0"
-                    y="0"
-                    width="20"
-                    height="20"
-                    patternUnits="userSpaceOnUse"
-                  >
-                    <circle cx="10" cy="10" r="1" fill="white" />
-                  </pattern>
-                </defs>
-                <rect
-                  width="100%"
-                  height="100%"
-                  fill="url(#insights-pattern)"
-                />
-              </svg>
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-10 rounded-3xl text-white">
+            <div className="text-center mb-8">
+              <h2 className="text-4xl font-bold mb-4 flex items-center justify-center">
+                <svg
+                  className="w-10 h-10 mr-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+                Insights Inteligentes
+              </h2>
+              <p className="text-xl opacity-90 max-w-3xl mx-auto">
+                Informe generado por IA siguiendo el briefing de evaluación
+                sensorial, comparando comentarios por muestra y orden de
+                preferencia.
+              </p>
             </div>
 
-            <div className="relative z-10">
-              <div className="text-center mb-8">
-                <h2 className="text-4xl font-bold mb-4 flex items-center justify-center">
-                  <svg
-                    className="w-10 h-10 mr-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
-                    />
-                  </svg>
-                  Insights Inteligentes
-                </h2>
-                <p className="text-xl opacity-90">
-                  Análisis generado por IA basado en las respuestas de{" "}
-                  {report.total_panelists} panelistas
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {report.insights.slice(0, 4).map((insight, index) => (
-                  <div
-                    key={index}
-                    className="bg-gray-50 bg-opacity-15 backdrop-blur-sm p-6 rounded-2xl border border-white border-opacity-20 shadow-lg"
-                  >
-                    <div className="flex items-start">
-                      <div className="flex-shrink-0 w-10 h-10 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center mr-4 mt-1">
-                        <span className="text-lg font-bold text-black">
-                          {index + 1}
-                        </span>
-                      </div>
-                      <p className="text-black leading-relaxed font-medium">
-                        {insight}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="bg-white text-gray-900 rounded-2xl p-6 md:p-8 shadow-xl max-h-[600px] overflow-auto">
+              <pre className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">
+                {report.insights.join("\n\n")}
+              </pre>
             </div>
           </div>
         )}
@@ -716,7 +823,9 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                       key={index}
                       className="p-3 bg-green-50 border-l-4 border-green-400 rounded"
                     >
-                      <p className="text-gray-700 italic">"{comment}"</p>
+                      <p className="text-gray-700 italic">
+                        &quot;{comment}&quot;
+                      </p>
                     </div>
                   )
                 )}
@@ -754,7 +863,9 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                       key={index}
                       className="p-3 bg-red-50 border-l-4 border-red-400 rounded"
                     >
-                      <p className="text-gray-700 italic">"{comment}"</p>
+                      <p className="text-gray-700 italic">
+                        &quot;{comment}&quot;
+                      </p>
                     </div>
                   )
                 )}

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Dashboard } from "../components/Dashboard";
 import { DashboardOverview } from "../types/survey";
 import { apiService } from "../utils/api";
+import { ProtectedRoute } from "../components/ProtectedRoute";
+import { Header } from "../components/Header";
 
 export default function Home() {
   const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(
@@ -62,8 +64,11 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Dashboard data={dashboardData} />
-    </div>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <Dashboard data={dashboardData} />
+      </div>
+    </ProtectedRoute>
   );
 }

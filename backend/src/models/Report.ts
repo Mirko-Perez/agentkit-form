@@ -73,9 +73,29 @@ export interface SensoryReport {
     top_positive_comments: string[];
     top_negative_comments: string[];
     common_themes: string[];
+    product_specific_feedback?: {
+      product_id: string;
+      product_name: string;
+      product_code?: string;
+      first_place_comments: string[];
+      second_place_comments: string[];
+      third_place_comments: string[];
+      total_comments: number;
+    }[];
   };
   recommendations: string[];
   generated_at: Date;
   generated_by?: string;
   insights?: string[];
+  // New fields for region, project, and winning formula
+  region?: string;
+  country?: string;
+  project_name?: string;
+  winning_formula?: {
+    product_name: string;
+    percentage: number;
+    meets_threshold: boolean;
+    threshold: number;
+  };
+  authorization_status?: 'pending' | 'approved' | 'rejected';
 }

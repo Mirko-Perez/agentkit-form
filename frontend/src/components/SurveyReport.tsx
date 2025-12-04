@@ -156,10 +156,10 @@ export const SurveyReportComponent: React.FC<SurveyReportProps> = ({
           </div>
         </div>
 
-        {/* AI Insights (simplified) */}
+        {/* AI Insights - Structured Report */}
         {report.insights && report.insights.length > 0 && (
           <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-10 rounded-3xl text-white">
-            <div className="text-center mb-8">
+            <div className="text-center mb-10">
               <h2 className="text-3xl font-bold mb-4 flex items-center justify-center">
                 <svg
                   className="w-8 h-8 mr-3"
@@ -176,28 +176,53 @@ export const SurveyReportComponent: React.FC<SurveyReportProps> = ({
                 </svg>
                 Insights Inteligentes
               </h2>
-              <p className="text-xl opacity-90">
-                Análisis generado por IA basado en las respuestas
+              <p className="text-xl opacity-90 max-w-3xl mx-auto">
+                Informe generado por IA que combina análisis cuantitativo,
+                cualitativo y recomendaciones accionables.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {report.insights.slice(0, 4).map((insight, index) => (
-                <div
-                  key={index}
-                  className="bg-gray-50 bg-opacity-10 backdrop-blur-sm p-6 rounded-2xl border border-white border-opacity-20"
-                >
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center mr-4 mt-1">
-                      <span className="text-sm font-bold text-black">
-                        {index + 1}
-                      </span>
+            {(() => {
+              const sectionTitles = [
+                "Reporte cuantitativo",
+                "Mejor opción / alternativa ganadora",
+                "Reporte cualitativo",
+                "Posibles mejoras y recomendaciones",
+                "Resumen ejecutivo final",
+              ];
+
+              const sections = sectionTitles
+                .map((title, index) => ({
+                  title,
+                  body: report.insights?.[index],
+                }))
+                .filter((s) => s.body && s.body.trim().length > 0);
+
+              return (
+                <div className="space-y-6">
+                  {sections.map((section, index) => (
+                    <div
+                      key={section.title}
+                      className="bg-gray-50 bg-opacity-10 backdrop-blur-sm p-6 md:p-7 rounded-2xl border border-white border-opacity-20"
+                    >
+                      <div className="flex items-start space-x-4">
+                        <div className="flex-shrink-0 w-8 h-8 bg-white text-indigo-700 rounded-full flex items-center justify-center mt-1 shadow-sm">
+                          <span className="text-sm font-bold">{index + 1}</span>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold mb-2 text-black">
+                            {section.title}
+                          </h3>
+                          <p className="text-sm md:text-base text-black/90 leading-relaxed whitespace-pre-line">
+                            {section.body}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-black leading-relaxed">{insight}</p>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </div>
         )}
 
