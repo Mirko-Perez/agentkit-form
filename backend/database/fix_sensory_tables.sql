@@ -12,3 +12,4 @@ ADD COLUMN IF NOT EXISTS position INTEGER;
 CREATE INDEX IF NOT EXISTS idx_sensory_evaluations_category ON sensory_evaluations(category_id);
 CREATE INDEX IF NOT EXISTS idx_sensory_products_position ON sensory_products(position);
 
+

@@ -8,6 +8,16 @@ interface SensoryReportProps {
 export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
   report,
 }) => {
+  const formatPValue = (p: number | string | undefined) => {
+    if (p === undefined || p === null) return "–";
+    const num = typeof p === "number" ? p : parseFloat(p);
+    if (Number.isNaN(num)) return String(p);
+    if (num < 0.001) return "p < 0.001";
+    if (num < 0.01) return "p < 0.01";
+    if (num < 0.05) return "p < 0.05";
+    return `p = ${num.toFixed(2)}`;
+  };
+
   const sortedByPreference = [...report.preference_analysis].sort(
     (a, b) => b.percentage - a.percentage
   );
@@ -169,8 +179,10 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                     <span>
                       Hay diferencias{" "}
                       <strong>estadísticamente significativas</strong> entre las
-                      muestras evaluadas (p{" "}
-                      {report.statistical_analysis.friedman_test.p_value}).
+                      muestras evaluadas ({formatPValue(
+                        report.statistical_analysis.friedman_test.p_value
+                      )}
+                      ).
                     </span>
                   ) : (
                     <span>
@@ -422,7 +434,7 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
               <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
                 <span className="font-medium text-gray-700">Valor p:</span>
                 <span className="font-bold text-blue-600">
-                  {report.statistical_analysis.friedman_test.p_value}
+                  {formatPValue(report.statistical_analysis.friedman_test.p_value)}
                 </span>
               </div>
               <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
@@ -822,7 +834,7 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
           </div>
         </div>
 
-        {/* AI Insights - Briefing style (single structured report) */}
+        {/* AI Insights - structured sections from backend markers */}
         {report.insights && report.insights.length > 0 && (
           <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-10 rounded-3xl text-white">
             <div className="text-center mb-8">
@@ -843,108 +855,74 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                 Insights Inteligentes
               </h2>
               <p className="text-xl opacity-90 max-w-3xl mx-auto">
-                Informe generado por IA siguiendo el briefing de evaluación
-                sensorial, comparando comentarios por muestra y orden de
-                preferencia.
+                Informe generado por IA con secciones claras: cuantitativo,
+                mejor opción, hallazgos cualitativos, mejoras y resumen.
               </p>
             </div>
 
-            <div className="bg-white text-gray-900 rounded-2xl p-8 shadow-xl max-h-[700px] overflow-auto">
-              <div className="space-y-4">
-                {report.insights
-                  .join("\n\n")
-                  .split("\n")
-                  .map((line, index) => {
-                    const trimmedLine = line.trim();
+            <div className="bg-white text-gray-900 rounded-2xl p-8 shadow-xl">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {report.insights.map((section, idx) => {
+                  const titles = [
+                    "Reporte Cuantitativo",
+                    "Mejor Opción",
+                    "Hallazgos Cualitativos",
+                    "Mejoras",
+                    "Resumen Ejecutivo",
+                  ];
+                  const title = titles[idx] || `Sección ${idx + 1}`;
+                  const lines = section
+                    .split("\n")
+                    .map((l) => l.trim())
+                    .filter((l) => l.length > 0);
 
-                    // Title detection (lines starting with # or all caps)
-                    if (trimmedLine.startsWith("# ")) {
-                      return (
-                        <h3
-                          key={index}
-                          className="text-2xl font-bold text-indigo-600 mt-6 mb-3 pb-2 border-b-2 border-indigo-200"
-                        >
-                          {trimmedLine.replace("# ", "")}
-                        </h3>
-                      );
-                    }
+                  return (
+                    <div
+                      key={idx}
+                      className="border border-indigo-100 rounded-xl p-4 shadow-sm"
+                    >
+                      <h3 className="text-lg font-bold text-indigo-600 mb-3">
+                        {title}
+                      </h3>
+                      <div className="space-y-2">
+                        {lines.map((line, lineIdx) => {
+                          const isBullet =
+                            line.startsWith("-") || line.startsWith("•");
+                          const content = line.replace(/^[-•]\s*/, "");
+                          const formattedContent = content.replace(
+                            /\*\*(.*?)\*\*/g,
+                            "<strong class=\"text-indigo-700\">$1</strong>"
+                          );
 
-                    // Subtitle detection (lines starting with ##)
-                    if (trimmedLine.startsWith("## ")) {
-                      return (
-                        <h4
-                          key={index}
-                          className="text-xl font-semibold text-indigo-500 mt-4 mb-2"
-                        >
-                          {trimmedLine.replace("## ", "")}
-                        </h4>
-                      );
-                    }
-
-                    // Bold section titles (Muestra XXX: or similar patterns)
-                    if (
-                      trimmedLine.includes("Muestra") &&
-                      trimmedLine.includes(":") &&
-                      !trimmedLine.startsWith("-")
-                    ) {
-                      return (
-                        <div
-                          key={index}
-                          className="bg-indigo-50 p-4 rounded-lg border-l-4 border-indigo-500 mt-3"
-                        >
-                          <p className="font-bold text-lg text-indigo-700">
-                            {trimmedLine}
-                          </p>
-                        </div>
-                      );
-                    }
-
-                    // List items (lines starting with -)
-                    if (trimmedLine.startsWith("-")) {
-                      const content = trimmedLine.replace(/^-\s*/, "");
-                      // Check if it contains bold markers (**)
-                      const hasBold = content.includes("**");
-                      const formattedContent = content.replace(
-                        /\*\*(.*?)\*\*/g,
-                        '<strong class="text-indigo-600 font-semibold">$1</strong>'
-                      );
-
-                      return (
-                        <div key={index} className="flex items-start ml-6">
-                          <span className="text-indigo-500 font-bold mr-3 mt-1">
-                            •
-                          </span>
-                          {hasBold ? (
+                          return isBullet ? (
+                            <div
+                              key={lineIdx}
+                              className="flex items-start space-x-2"
+                            >
+                              <span className="text-indigo-500 font-bold mt-0.5">
+                                •
+                              </span>
+                              <p
+                                className="text-sm text-gray-700 leading-relaxed"
+                                dangerouslySetInnerHTML={{
+                                  __html: formattedContent,
+                                }}
+                              />
+                            </div>
+                          ) : (
                             <p
-                              className="text-gray-700 flex-1 leading-relaxed"
+                              key={lineIdx}
+                              className="text-sm text-gray-700 leading-relaxed"
                               dangerouslySetInnerHTML={{
                                 __html: formattedContent,
                               }}
-                            ></p>
-                          ) : (
-                            <p className="text-gray-700 flex-1 leading-relaxed">
-                              {content}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    }
-
-                    // Empty lines
-                    if (trimmedLine === "") {
-                      return <div key={index} className="h-3"></div>;
-                    }
-
-                    // Regular paragraphs
-                    return (
-                      <p
-                        key={index}
-                        className="text-gray-700 text-base leading-relaxed"
-                      >
-                        {trimmedLine}
-                      </p>
-                    );
-                  })}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

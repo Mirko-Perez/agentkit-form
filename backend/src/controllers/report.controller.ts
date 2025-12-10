@@ -275,6 +275,12 @@ export class ReportController {
         authorization_status: 'pending'
       };
 
+      // Invalidate previous reports for this evaluation and type to avoid duplicates
+      await query(
+        'UPDATE generated_reports SET is_valid = false, expires_at = NOW() WHERE evaluation_id = $1 AND report_type = $2',
+        [evaluation_id, 'sensory']
+      );
+
       // Save the generated report to database for future use
       const reportId = `${evaluation_id}_sensory_${Date.now()}`;
       await query(
@@ -854,37 +860,38 @@ export class ReportController {
     preferenceStats: SensoryPreferenceStats[],
     n: number
   ): Promise<SensoryStatisticalAnalysis> {
-    // Get the difference in votes
+    // Conteo de votos por cada muestra (primer lugar)
     const sample1Votes = preferenceStats[0].first_place_count;
     const sample2Votes = preferenceStats[1].first_place_count;
-    const difference = Math.abs(sample1Votes - sample2Votes);
+    const winningVotes = Math.max(sample1Votes, sample2Votes);
 
-    // ISO 5495 Paired Comparison Formula
+    // Fórmula ISO 5495 para prueba pareada (alineada a la hoja de cálculo del usuario)
+    // X = (n + 1) / 2
+    // Valor crítico = X + Z * sqrt(0.25 * n)
+    // Se compara el recuento de la muestra ganadora contra el valor crítico
     const X = (n + 1) / 2;
-    
-    // Z values for different significance levels
+
     const zValues: Record<number, number> = {
       0.20: 1.28,
       0.10: 1.64,
-      0.05: 1.96,  // Most common (95% confidence)
+      0.05: 1.96,
       0.01: 2.58,
       0.001: 3.29
     };
 
-    const significanceLevel = 0.05;
+    const significanceLevel = 0.05; // 95% de confianza (Z=1.96)
     const Z = zValues[significanceLevel];
-    const zSquaredRaiz = Math.pow(Z, 2) * Math.sqrt((n * (n + 1)) / 12);
-    const criticalValue = X + zSquaredRaiz;
+    const criticalValue = X + Z * Math.sqrt(0.25 * n);
 
-    // Determine if significant
-    const isSignificant = difference >= criticalValue;
+    // Determinar significancia: la muestra ganadora debe superar el valor crítico
+    const isSignificant = winningVotes >= criticalValue;
 
     const interpretation = isSignificant
-      ? `Diferencia de ${difference} votos >= ${criticalValue.toFixed(2)} (valor crítico). SÍ existe diferencia estadísticamente significativa entre las muestras`
-      : `Diferencia de ${difference} votos < ${criticalValue.toFixed(2)} (valor crítico). NO existe diferencia estadísticamente significativa entre las muestras`;
+      ? `La muestra ganadora obtuvo ${winningVotes} votos, que supera el valor crítico requerido (${criticalValue.toFixed(2)}). SÍ existe diferencia estadísticamente significativa según ISO 5495 (pareada).`
+      : `La muestra ganadora obtuvo ${winningVotes} votos, menor que el valor crítico requerido (${criticalValue.toFixed(2)}). NO existe diferencia estadísticamente significativa según ISO 5495 (pareada).`;
 
-    // For display purposes, also calculate a simplified chi-square
-    const chiSquare = Math.pow(difference, 2) / n;
+    // Chi-cuadrado simplificado solo para referencia visual
+    const chiSquare = Math.pow(winningVotes - X, 2) / X;
 
     return {
       friedman_test: {
@@ -893,14 +900,14 @@ export class ReportController {
         p_value: isSignificant ? 0.01 : 0.15,
         significant: isSignificant,
         critical_value: this.getCriticalValue(1, significanceLevel),
-        interpretation: interpretation
+        interpretation
       },
       iso_5495: {
-        test_statistic: difference,
+        test_statistic: winningVotes,
         critical_value: Math.round(criticalValue * 100) / 100,
         significance_level: significanceLevel,
         is_significant: isSignificant,
-        interpretation: `Prueba Pareada ISO 5495: ${interpretation}`,
+        interpretation,
         num_samples: 2,
         num_panelists: n
       },
@@ -1159,13 +1166,22 @@ export class ReportController {
         });
       });
 
-      // Build the structured prompt following the format provided
-      let prompt = `Actúa como experto en investigaciones de mercado y evaluaciones sensoriales. Justo ahora debes entregar un informe con un resumen comparativo de los comentarios más repetitivos de cada muestra que se sometió a una evaluación sensorial de preferencia por ordenamiento.
+      // Build the structured prompt with explicit markers for predictable parsing
+      let prompt = `Actúa como experto en investigaciones de mercado y evaluaciones sensoriales.
+Genera un INFORME ESTRUCTURADO en ESPAÑOL usando EXÁCTAMENTE estos marcadores:
+<<<CUANTITATIVO>>>
+<<<MEJOR_OPCION>>>
+<<<CUALITATIVO>>>
+<<<MEJORAS>>>
+<<<RESUMEN>>>
 
-Se realizó una evaluación sensorial de preferencia por ordenamiento entre unas muestras. Las muestras fueron presentadas en incógnito con los códigos: ${products.map(p => p.code || p.name).join(', ')} y se les pidió que ordenaran las muestras desde la que más le gustó hasta la que menos le gustó y que explicaran el por qué de su elección.
+Contexto:
+- Evaluación sensorial de preferencia por ordenamiento
+- Muestras (códigos): ${products.map(p => p.code || p.name).join(', ')}
+- Panelistas: ${evaluations.length}
+- Diferencias estadísticas (Friedman): ${statisticalAnalysis.friedman_test.significant ? 'significativas' : 'no significativas'}
 
-Total de panelistas: ${evaluations.length}
-
+Datos por muestra (ranking y comentarios):
 `;
 
       // Add comments for each product organized by position
@@ -1174,32 +1190,30 @@ Total de panelistas: ${evaluations.length}
         const comments = commentsByProductAndPosition[product.id];
         const stats = preferenceStats.find(s => s.product_id === product.id);
 
-        prompt += `Muestra ${productCode}
-- 1° lugar: ${stats?.first_place_count || 0} panelistas
-- 2° lugar: ${stats?.second_place_count || 0} panelistas  
-- 3° lugar: ${stats?.third_place_count || 0} panelistas
-- Preferencia total: ${stats?.percentage.toFixed(1) || 0}%
+        prompt += `\nMuestra ${productCode}
+1) 1° lugar: ${stats?.first_place_count || 0} panelistas
+2) 2° lugar: ${stats?.second_place_count || 0} panelistas
+3) 3° lugar: ${stats?.third_place_count || 0} panelistas
+% preferencia (1° lugar): ${stats?.percentage.toFixed(1) || 0}%
 
-Comentarios de quienes la ubicaron en 1° lugar (positivos):
+Comentarios 1° lugar (positivos):
 ${comments.first.length > 0 ? comments.first.join('\n') : 'No hay comentarios'}
 
-Comentarios de quienes la ubicaron en 2° lugar (neutros / balanceados):
+Comentarios 2° lugar (neutros):
 ${comments.second.length > 0 ? comments.second.join('\n') : 'No hay comentarios'}
 
-Comentarios de quienes la ubicaron en 3° lugar (negativos):
+Comentarios 3° lugar (negativos):
 ${comments.third.length > 0 ? comments.third.join('\n') : 'No hay comentarios'}
-
 `;
       });
 
-      prompt += `\nAnálisis estadístico: ${statisticalAnalysis.friedman_test.significant ? 'Diferencias significativas encontradas (p < 0.05)' : 'No hay diferencias significativas entre las muestras'}
-
-Por favor proporciona:
-1. Un resumen ejecutivo comparativo de los comentarios más repetitivos
-2. Identificación de patrones comunes en comentarios positivos, neutros y negativos
-3. Fortalezas y debilidades de cada muestra
-4. Recomendaciones específicas basadas en los comentarios cualitativos
-5. Análisis de la consistencia de los comentarios con los resultados estadísticos`;
+      prompt += `
+Entrega el resultado siguiendo los marcadores EXACTOS:
+<<<CUANTITATIVO>>> análisis breve de números y ranking (viñetas cortas)
+<<<MEJOR_OPCION>>> cuál es la ganadora y por qué (máx 2 frases)
+<<<CUALITATIVO>>> 5 hallazgos clave de comentarios (bullets con **tema** + texto)
+<<<MEJORAS>>> 4-6 acciones concretas
+<<<RESUMEN>>> 1 párrafo ejecutivo`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-4-turbo-preview",
@@ -1219,20 +1233,32 @@ Por favor proporciona:
 
       const insightsText = completion.choices[0]?.message?.content || '';
 
-      // Parse insights - try to split by numbered points or sections
-      const insights = insightsText
-        .split(/\d+\.|\*\s*|•\s*|##|###/)
-        .map(insight => insight.trim())
-        .filter(insight => insight.length > 20); // Filter out very short items
+      // Parse using the explicit markers to keep sections intact
+      const markers = [
+        'CUANTITATIVO',
+        'MEJOR_OPCION',
+        'CUALITATIVO',
+        'MEJORAS',
+        'RESUMEN'
+      ];
 
-      // If parsing didn't work well, return the full text as a single insight
-      if (insights.length === 0 || insights.length === 1) {
-        // Try to split by paragraphs
-        const paragraphs = insightsText.split(/\n\n+/).filter(p => p.trim().length > 20);
+      const sections: string[] = [];
+
+      markers.forEach(marker => {
+        const regex = new RegExp(`<<<${marker}>>>[\\r\\n]+([\\s\\S]*?)(?=<<<|$)`, 'i');
+        const match = insightsText.match(regex);
+        if (match && match[1]) {
+          sections.push(match[1].trim());
+        }
+      });
+
+      // Fallback if markers not respected
+      if (sections.length === 0) {
+        const paragraphs = insightsText.split(/\n\n+/).map(p => p.trim()).filter(p => p.length > 0);
         return paragraphs.length > 0 ? paragraphs : [insightsText];
       }
 
-      return insights;
+      return sections;
     } catch (error) {
       console.error('Error generating sensory insights:', error);
       return [

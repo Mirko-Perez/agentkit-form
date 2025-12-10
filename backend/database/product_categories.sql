@@ -73,3 +73,4 @@ COMMENT ON TABLE product_categories IS 'Categorías de productos para clasificar
 COMMENT ON COLUMN product_categories.name IS 'Nombre único de la categoría (ej: Mayonesa, Salsa, Ketchup)';
 COMMENT ON COLUMN product_categories.is_active IS 'Indica si la categoría está activa para ser usada';
 
+

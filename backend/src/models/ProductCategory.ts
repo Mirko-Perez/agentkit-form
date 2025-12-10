@@ -24,3 +24,4 @@ export interface UpdateCategoryRequest {
   is_active?: boolean;
 }
 
+

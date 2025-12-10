@@ -280,3 +280,4 @@ COMMENT ON TABLE iso_5495_critical_values IS 'Valores críticos según norma ISO
 COMMENT ON FUNCTION get_iso_5495_critical_value IS 'Obtiene el valor crítico para un escenario dado (número de muestras, panelistas, nivel de significancia)';
 COMMENT ON FUNCTION check_iso_5495_significance IS 'Determina si un resultado es estadísticamente significativo según ISO 5495';
 
+
