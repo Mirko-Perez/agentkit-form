@@ -73,3 +73,5 @@ COMMENT ON COLUMN surveys.country IS 'Country where the survey was conducted';
 COMMENT ON COLUMN surveys.project_name IS 'Project name (e.g., Solimar Boquillon, España)';
 COMMENT ON COLUMN report_authorizations.winning_formula_threshold IS 'Minimum percentage required for a product to be considered winning formula (70% or 80%)';
 
+
+

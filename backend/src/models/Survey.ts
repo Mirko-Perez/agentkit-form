@@ -29,10 +29,13 @@ export interface SurveyResponse {
 // New interfaces for sensory evaluation
 export interface SensoryProduct {
   id: string;
+  evaluation_id?: string; // Links to evaluation
   name: string;
-  code?: string; // e.g., "Fritz", "Osole", "Kiero"
+  code?: string; // e.g., "Fritz", "Osole", "Kiero", "144", "232"
   description?: string;
   image_url?: string;
+  position?: number; // Position/order in the evaluation
+  is_deleted?: boolean;
 }
 
 export interface SensoryPreference {

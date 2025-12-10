@@ -98,6 +98,17 @@ class ApiService {
     });
   }
 
+  async importFileWithCategory(formData: FormData): Promise<{
+    survey_id: string;
+    imported_responses: number;
+    insights: string[];
+  }> {
+    return this.request('/import/file', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
   async importFromGoogleSheets(sheetUrl: string, sheetName?: string): Promise<any> {
     return this.request('/import/google-sheets', {
       method: 'POST',
@@ -223,6 +234,158 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  // Category endpoints
+  async getCategories(activeOnly: boolean = false): Promise<{
+    categories: Array<{
+      id: string;
+      name: string;
+      description?: string;
+      is_active: boolean;
+      created_at: string;
+      updated_at: string;
+    }>;
+    total: number;
+  }> {
+    const params = activeOnly ? '?active_only=true' : '';
+    return this.request(`/categories${params}`);
+  }
+
+  async getCategory(id: string): Promise<{
+    category: {
+      id: string;
+      name: string;
+      description?: string;
+      is_active: boolean;
+      created_at: string;
+      updated_at: string;
+    };
+  }> {
+    return this.request(`/categories/${id}`);
+  }
+
+  async createCategory(data: {
+    name: string;
+    description?: string;
+    is_active?: boolean;
+  }): Promise<{
+    message: string;
+    category: any;
+  }> {
+    return this.request('/categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCategory(id: string, data: {
+    name?: string;
+    description?: string;
+    is_active?: boolean;
+  }): Promise<{
+    message: string;
+    category: any;
+  }> {
+    return this.request(`/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCategory(id: string, hardDelete: boolean = false): Promise<{
+    message: string;
+  }> {
+    const params = hardDelete ? '?hard_delete=true' : '';
+    return this.request(`/categories/${id}${params}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getCategoryStats(): Promise<{
+    stats: Array<{
+      id: string;
+      name: string;
+      description?: string;
+      is_active: boolean;
+      survey_count: number;
+      sensory_evaluation_count: number;
+      total_usage: number;
+    }>;
+  }> {
+    return this.request('/categories/stats/usage');
+  }
+
+  // Auth endpoints
+  async login(email: string, password: string): Promise<{
+    token: string;
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      role: string;
+      region?: string;
+      country?: string;
+    };
+  }> {
+    return this.request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  }
+
+  async register(data: {
+    email: string;
+    password: string;
+    name: string;
+    role?: string;
+    region?: string;
+    country?: string;
+  }): Promise<{
+    token: string;
+    user: any;
+  }> {
+    return this.request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getProfile(): Promise<{
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      role: string;
+      region?: string;
+      country?: string;
+      is_active: boolean;
+      created_at: string;
+      last_login?: string;
+    };
+  }> {
+    return this.request('/auth/profile');
+  }
+
+  async updateProfile(data: {
+    name?: string;
+    region?: string;
+    country?: string;
+  }): Promise<{
+    message: string;
+    user: any;
+  }> {
+    return this.request('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getUsers(): Promise<{
+    users: Array<any>;
+    total: number;
+  }> {
+    return this.request('/auth/users');
   }
 }
 

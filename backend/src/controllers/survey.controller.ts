@@ -176,6 +176,11 @@ export class SurveyController {
       // Soft delete survey and its responses
       await query('UPDATE surveys SET is_deleted = true WHERE id = $1', [id]);
       await query('UPDATE survey_responses SET is_deleted = true WHERE survey_id = $1', [id]);
+      // Invalidate generated reports for this survey
+      await query(
+        'UPDATE generated_reports SET is_valid = false, expires_at = NOW() WHERE evaluation_id = $1 AND report_type = $2',
+        [id, 'survey']
+      );
 
       res.json({ message: 'Survey deleted successfully' });
     } catch (error) {

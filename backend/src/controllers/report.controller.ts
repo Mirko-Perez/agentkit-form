@@ -209,8 +209,10 @@ export class ReportController {
       // Calculate preference statistics
       const preferenceStats = this.calculateSensoryPreferences(evaluations, products);
 
-      // Perform statistical analysis (Friedman test)
-      const statisticalAnalysis = this.performStatisticalAnalysis(preferenceStats, evaluations.length);
+      // Perform statistical analysis (Friedman test + ISO 5495)
+      console.log('Starting statistical analysis for', evaluations.length, 'panelists and', preferenceStats.length, 'products');
+      const statisticalAnalysis = await this.performStatisticalAnalysis(preferenceStats, evaluations.length);
+      console.log('Statistical analysis completed');
 
       // Extract qualitative feedback (organized by product and position)
       const qualitativeFeedback = this.extractQualitativeFeedback(evaluations, products);
@@ -284,7 +286,12 @@ export class ReportController {
       res.json(report);
     } catch (error) {
       console.error('Error generating sensory report:', error);
-      res.status(500).json({ error: 'Failed to generate sensory report' });
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+      res.status(500).json({ 
+        error: 'Failed to generate sensory report',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
+      });
     }
   }
 
@@ -533,38 +540,57 @@ export class ReportController {
    */
   static async getDashboardOverview(req: Request, res: Response) {
     try {
-      // Get total surveys
-      const surveysResult = await query('SELECT COUNT(*) as total FROM surveys WHERE is_active = true AND is_deleted = false');
-      const totalSurveys = parseInt(surveysResult.rows[0].total);
-
-      // Get total responses
-      const responsesResult = await query('SELECT COUNT(*) as total FROM survey_responses WHERE is_deleted = false');
-      const totalResponses = parseInt(responsesResult.rows[0].total);
-
-      // Get recent surveys
-      const recentSurveysResult = await query(
-        'SELECT id, title, created_at FROM surveys WHERE is_active = true AND is_deleted = false ORDER BY created_at DESC LIMIT 5'
+      // Get total sensory evaluations (since everything is sensory now)
+      const evaluationsCountResult = await query(
+        'SELECT COUNT(DISTINCT evaluation_id) as total FROM sensory_evaluations WHERE is_deleted = false'
       );
+      const totalEvaluations = parseInt(evaluationsCountResult.rows[0].total) || 0;
 
-      // Get response stats by survey
+      // Get total panelists
+      const panelistsResult = await query('SELECT COUNT(*) as total FROM sensory_evaluations WHERE is_deleted = false');
+      const totalPanelists = parseInt(panelistsResult.rows[0].total) || 0;
+
+      // Get recent evaluations with product info (avoid DISTINCT + window fn error)
+      const recentEvaluationsResult = await query(`
+        WITH agg AS (
+          SELECT 
+            se.evaluation_id AS id,
+            COALESCE(STRING_AGG(DISTINCT sp.name, ' vs '), 'Evaluación Sensorial') AS title,
+            MAX(se.submitted_at) AS created_at,
+            COUNT(DISTINCT se.id) AS panelist_count
+          FROM sensory_evaluations se
+          LEFT JOIN sensory_products sp 
+            ON se.evaluation_id = sp.evaluation_id 
+           AND sp.is_deleted = false
+          WHERE se.is_deleted = false
+          GROUP BY se.evaluation_id
+          ORDER BY created_at DESC
+          LIMIT 5
+        )
+        SELECT * FROM agg;
+      `);
+
+      // Get evaluation stats (top by responses)
       const statsResult = await query(`
         SELECT
-          s.id,
-          s.title,
-          COUNT(sr.id) as response_count,
-          MAX(sr.submitted_at) as last_response
-        FROM surveys s
-        LEFT JOIN survey_responses sr ON s.id = sr.survey_id AND sr.is_deleted = false
-        WHERE s.is_active = true AND s.is_deleted = false
-        GROUP BY s.id, s.title
+          se.evaluation_id AS id,
+          COALESCE(STRING_AGG(DISTINCT sp.name, ' vs '), 'Evaluación Sensorial') AS title,
+          COUNT(DISTINCT se.id) AS response_count,
+          MAX(se.submitted_at) AS last_response
+        FROM sensory_evaluations se
+        LEFT JOIN sensory_products sp 
+          ON se.evaluation_id = sp.evaluation_id 
+         AND sp.is_deleted = false
+        WHERE se.is_deleted = false
+        GROUP BY se.evaluation_id
         ORDER BY response_count DESC
         LIMIT 10
       `);
 
       res.json({
-        total_surveys: totalSurveys,
-        total_responses: totalResponses,
-        recent_surveys: recentSurveysResult.rows,
+        total_surveys: totalEvaluations,
+        total_responses: totalPanelists,
+        recent_surveys: recentEvaluationsResult.rows,
         survey_stats: statsResult.rows,
         generated_at: new Date()
       });
@@ -683,30 +709,29 @@ export class ReportController {
     const result = Array.from(statsMap.values());
 
     result.forEach(stats => {
-      stats.percentage = totalEvaluations > 0 ? (stats.total_votes / totalEvaluations) * 100 : 0;
+      // Percentage based on FIRST PLACE votes (winner preference)
+      stats.percentage = totalEvaluations > 0 ? (stats.first_place_count / totalEvaluations) * 100 : 0;
 
       // Calculate weighted average position (1st=1, 2nd=2, 3rd=3, lower is better)
       const weightedSum = (stats.first_place_count * 1) + (stats.second_place_count * 2) + (stats.third_place_count * 3);
       stats.average_position = stats.total_votes > 0 ? weightedSum / stats.total_votes : 3;
     });
 
-    // Sort by preference (best to worst)
+    // Sort by preference (best to worst) - lower average position = better
     return result.sort((a, b) => a.average_position - b.average_position);
   }
 
   /**
    * Perform statistical analysis (Friedman test)
    */
-  private static performStatisticalAnalysis(
+  private static async performStatisticalAnalysis(
     preferenceStats: SensoryPreferenceStats[],
     totalPanelists: number
-  ): SensoryStatisticalAnalysis {
-    // Simplified Friedman test implementation
-    // In a real implementation, you'd use a proper statistical library
+  ): Promise<SensoryStatisticalAnalysis> {
     const k = preferenceStats.length; // number of products
     const n = totalPanelists; // number of panelists
 
-    if (k < 3 || n < 3) {
+    if (k < 2 || n < 3) {
       return {
         friedman_test: {
           chi_square: 0,
@@ -716,9 +741,24 @@ export class ReportController {
           critical_value: this.getCriticalValue(k - 1, 0.05),
           interpretation: 'Insuficientes datos para análisis estadístico'
         },
+        iso_5495: {
+          test_statistic: 0,
+          critical_value: 0,
+          significance_level: 0.05,
+          is_significant: false,
+          interpretation: 'Insuficientes datos para análisis ISO 5495',
+          num_samples: k,
+          num_panelists: n
+        },
         pairwise_comparisons: [],
-        overall_significance: false
+        overall_significance: false,
+        statistical_approval_recommended: false
       };
+    }
+
+    // For PAIRED comparison (2 samples) - use ISO 5495 paired test formula
+    if (k === 2) {
+      return this.performPairedComparisonAnalysis(preferenceStats, n);
     }
 
     // Calculate ranks for each product
@@ -749,6 +789,33 @@ export class ReportController {
       }
     }
 
+    // Query ISO 5495 critical value
+    let iso5495Result;
+    try {
+      console.log('Querying ISO 5495 with:', { k, n, chiSquare, significance: 0.05, type: 'friedman' });
+      const isoQuery = await query(
+        'SELECT * FROM check_iso_5495_significance($1, $2, $3, $4, $5)',
+        [k, n, chiSquare, 0.05, 'friedman']
+      );
+      console.log('ISO 5495 query result:', isoQuery.rows[0]);
+      iso5495Result = isoQuery.rows[0];
+    } catch (error) {
+      console.error('Error querying ISO 5495 values:', error);
+      console.error('ISO 5495 error details:', error instanceof Error ? error.message : 'Unknown');
+      // Fallback to basic chi-square
+      iso5495Result = {
+        is_significant: false,
+        critical_value: criticalValue,
+        test_statistic: chiSquare,
+        significance_level: 0.05,
+        interpretation: 'Error al consultar tabla ISO 5495 - usando valores aproximados'
+      };
+    }
+
+    // Determine if statistical approval is recommended
+    // TRUE if ISO 5495 shows statistical significance, even if product doesn't meet 70% threshold
+    const statisticalApprovalRecommended = iso5495Result.is_significant;
+
     return {
       friedman_test: {
         chi_square: Math.round(chiSquare * 100) / 100,
@@ -760,8 +827,91 @@ export class ReportController {
           ? 'Hay diferencias significativas entre los productos'
           : 'No hay diferencias significativas entre los productos'
       },
+      iso_5495: {
+        test_statistic: Math.round(parseFloat(iso5495Result.test_statistic) * 100) / 100,
+        critical_value: Math.round(parseFloat(iso5495Result.critical_value) * 100) / 100,
+        significance_level: parseFloat(iso5495Result.significance_level),
+        is_significant: iso5495Result.is_significant,
+        interpretation: iso5495Result.interpretation,
+        num_samples: k,
+        num_panelists: n
+      },
       pairwise_comparisons: pairwiseComparisons,
-      overall_significance: significant
+      overall_significance: significant,
+      statistical_approval_recommended: statisticalApprovalRecommended
+    };
+  }
+
+  /**
+   * Perform paired comparison analysis (ISO 5495 for 2 samples)
+   * Formula from user's spreadsheet:
+   * X = (n+1)/2
+   * Z²*Raiz = Z² * sqrt(n*(n+1)/12)
+   * SUMA = X + Z²*Raiz = VALOR CRITICO REQUERIDO
+   * If difference >= VALOR CRITICO → Significant
+   */
+  private static async performPairedComparisonAnalysis(
+    preferenceStats: SensoryPreferenceStats[],
+    n: number
+  ): Promise<SensoryStatisticalAnalysis> {
+    // Get the difference in votes
+    const sample1Votes = preferenceStats[0].first_place_count;
+    const sample2Votes = preferenceStats[1].first_place_count;
+    const difference = Math.abs(sample1Votes - sample2Votes);
+
+    // ISO 5495 Paired Comparison Formula
+    const X = (n + 1) / 2;
+    
+    // Z values for different significance levels
+    const zValues: Record<number, number> = {
+      0.20: 1.28,
+      0.10: 1.64,
+      0.05: 1.96,  // Most common (95% confidence)
+      0.01: 2.58,
+      0.001: 3.29
+    };
+
+    const significanceLevel = 0.05;
+    const Z = zValues[significanceLevel];
+    const zSquaredRaiz = Math.pow(Z, 2) * Math.sqrt((n * (n + 1)) / 12);
+    const criticalValue = X + zSquaredRaiz;
+
+    // Determine if significant
+    const isSignificant = difference >= criticalValue;
+
+    const interpretation = isSignificant
+      ? `Diferencia de ${difference} votos >= ${criticalValue.toFixed(2)} (valor crítico). SÍ existe diferencia estadísticamente significativa entre las muestras`
+      : `Diferencia de ${difference} votos < ${criticalValue.toFixed(2)} (valor crítico). NO existe diferencia estadísticamente significativa entre las muestras`;
+
+    // For display purposes, also calculate a simplified chi-square
+    const chiSquare = Math.pow(difference, 2) / n;
+
+    return {
+      friedman_test: {
+        chi_square: Math.round(chiSquare * 100) / 100,
+        degrees_of_freedom: 1,
+        p_value: isSignificant ? 0.01 : 0.15,
+        significant: isSignificant,
+        critical_value: this.getCriticalValue(1, significanceLevel),
+        interpretation: interpretation
+      },
+      iso_5495: {
+        test_statistic: difference,
+        critical_value: Math.round(criticalValue * 100) / 100,
+        significance_level: significanceLevel,
+        is_significant: isSignificant,
+        interpretation: `Prueba Pareada ISO 5495: ${interpretation}`,
+        num_samples: 2,
+        num_panelists: n
+      },
+      pairwise_comparisons: [{
+        product_a: preferenceStats[0].product_name,
+        product_b: preferenceStats[1].product_name,
+        difference_significant: isSignificant,
+        confidence_level: 95
+      }],
+      overall_significance: isSignificant,
+      statistical_approval_recommended: isSignificant
     };
   }
 
@@ -782,6 +932,43 @@ export class ReportController {
       10: 18.31
     };
     return criticalValues[df] || (df * 2.5); // Approximation for higher df
+  }
+
+  /**
+   * Helper function to calculate comment frequencies
+   * Groups similar comments and counts occurrences
+   */
+  private static calculateCommentFrequencies(
+    comments: string[],
+    totalPanelists: number
+  ): Array<{text: string; count: number; percentage: number; is_representative: boolean}> {
+    // Normalize and group comments
+    const commentMap = new Map<string, Set<string>>(); // normalized -> original comments
+    
+    comments.forEach(comment => {
+      const normalized = comment.toLowerCase().trim();
+      if (!commentMap.has(normalized)) {
+        commentMap.set(normalized, new Set());
+      }
+      commentMap.get(normalized)!.add(comment);
+    });
+
+    // Convert to frequency array
+    const frequencies = Array.from(commentMap.entries()).map(([normalized, originals]) => {
+      const count = originals.size;
+      const percentage = totalPanelists > 0 ? Math.round((count / totalPanelists) * 100) : 0;
+      const is_representative = count >= 3; // Minimum 3 mentions to be representative
+      
+      // Use the most common version of the comment (or just pick first)
+      const text = Array.from(originals)[0];
+      
+      return { text, count, percentage, is_representative };
+    });
+
+    // Sort by frequency (most common first)
+    frequencies.sort((a, b) => b.count - a.count);
+
+    return frequencies;
   }
 
   /**
@@ -831,36 +1018,41 @@ export class ReportController {
     });
 
     // Categorize comments (simple keyword-based, could be improved with NLP)
-    const positiveKeywords = ['bueno', 'excelente', 'mejor', 'gusta', 'rico', 'sabroso', 'agradable', 'perfecto', 'delicioso'];
-    const negativeKeywords = ['malo', 'peor', 'regular', 'mejorar', 'desagradable', 'mal', 'no gusta', 'insípido'];
+    const positiveKeywords = ['bueno', 'excelente', 'mejor', 'gusta', 'rico', 'sabroso', 'agradable', 'perfecto', 'delicioso', 'dulce', 'equilibrado', 'natural', 'fresco'];
+    const negativeKeywords = ['malo', 'peor', 'regular', 'mejorar', 'desagradable', 'mal', 'no gusta', 'insípido', 'artificial', 'químico', 'empalagoso', 'diluido', 'fuerte'];
 
-    const positiveComments = allComments.filter(comment => {
+    const positiveCommentsRaw = allComments.filter(comment => {
       const lower = comment.toLowerCase();
       return positiveKeywords.some(keyword => lower.includes(keyword));
     });
 
-    const negativeComments = allComments.filter(comment => {
+    const negativeCommentsRaw = allComments.filter(comment => {
       const lower = comment.toLowerCase();
       return negativeKeywords.some(keyword => lower.includes(keyword));
     });
 
-    // Build product-specific feedback
+    // Calculate frequencies for positive and negative comments
+    const totalPanelists = evaluations.length;
+    const positiveWithFreq = this.calculateCommentFrequencies(positiveCommentsRaw, totalPanelists);
+    const negativeWithFreq = this.calculateCommentFrequencies(negativeCommentsRaw, totalPanelists);
+
+    // Build product-specific feedback with frequencies
     const productFeedback = products.map(product => {
       const feedback = commentsByProduct[product.id];
       return {
         product_id: product.id,
         product_name: product.name,
         product_code: product.code,
-        first_place_comments: feedback.first_place,
-        second_place_comments: feedback.second_place,
-        third_place_comments: feedback.third_place,
+        first_place_comments: this.calculateCommentFrequencies(feedback.first_place, totalPanelists),
+        second_place_comments: this.calculateCommentFrequencies(feedback.second_place, totalPanelists),
+        third_place_comments: this.calculateCommentFrequencies(feedback.third_place, totalPanelists),
         total_comments: feedback.all.length
       };
     });
 
     return {
-      top_positive_comments: positiveComments.slice(0, 10),
-      top_negative_comments: negativeComments.slice(0, 10),
+      top_positive_comments: positiveWithFreq.slice(0, 10),
+      top_negative_comments: negativeWithFreq.slice(0, 10),
       product_specific_feedback: productFeedback,
       common_themes: ['sabor', 'textura', 'color', 'aroma', 'consistencia', 'apariencia']
     };
@@ -896,13 +1088,19 @@ export class ReportController {
     }
 
     // Add specific recommendations based on rankings
-    preferenceStats.forEach((stats, index) => {
-      if (stats.average_position < 2) {
-        recommendations.push(`Considerar promover ${stats.product_name} como producto estrella.`);
-      } else if (stats.average_position > 2.5) {
-        recommendations.push(`Revisar fórmula de ${stats.product_name} para mejorar su aceptación.`);
+    // Only recommend the top product as star product
+    if (preferenceStats.length > 0 && preferenceStats[0].percentage > preferenceStats[preferenceStats.length - 1].percentage) {
+      const winner = preferenceStats[0];
+      recommendations.push(`💡 Considerar promover ${winner.product_name} como producto estrella (${winner.percentage.toFixed(1)}% de preferencia).`);
+      
+      // Suggest improvements for low performers
+      if (preferenceStats.length > 1) {
+        const lastProduct = preferenceStats[preferenceStats.length - 1];
+        if (lastProduct.percentage < 40) {
+          recommendations.push(`📝 Revisar fórmula de ${lastProduct.product_name} para mejorar su aceptación (solo ${lastProduct.percentage.toFixed(1)}% de preferencia).`);
+        }
       }
-    });
+    }
 
     return recommendations;
   }

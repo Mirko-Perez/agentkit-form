@@ -31,7 +31,11 @@ export const Header: React.FC = () => {
       viewer: "Visualizador",
     };
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${styles[role as keyof typeof styles] || styles.viewer}`}>
+      <span
+        className={`px-2 py-1 rounded-full text-xs font-semibold ${
+          styles[role as keyof typeof styles] || styles.viewer
+        }`}
+      >
         {labels[role as keyof typeof labels] || role}
       </span>
     );
@@ -62,6 +66,14 @@ export const Header: React.FC = () => {
               >
                 Planilla de Reportes
               </Link>
+              {(user?.role === "admin" || user?.role === "editor") && (
+                <Link
+                  href="/categories"
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Categorías
+                </Link>
+              )}
               <Link
                 href="/import"
                 className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
@@ -110,10 +122,14 @@ export const Header: React.FC = () => {
               {showMenu && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
                   <div className="px-4 py-2 border-b border-gray-200">
-                    <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {user?.name}
+                    </p>
                     <p className="text-xs text-gray-500">{user?.email}</p>
                     {user?.region && (
-                      <p className="text-xs text-gray-500 mt-1">Región: {user.region}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Región: {user.region}
+                      </p>
                     )}
                   </div>
                   <Link
@@ -138,4 +154,3 @@ export const Header: React.FC = () => {
     </header>
   );
 };
-

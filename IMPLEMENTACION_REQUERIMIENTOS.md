@@ -207,3 +207,5 @@ Para preguntas sobre la implementación, revisar:
 - Migraciones en `backend/database/`
 - Componente frontend en `frontend/src/components/ReportsPlanilla.tsx`
 
+
+

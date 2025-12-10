@@ -41,3 +41,5 @@ router.get('/users', authenticate, authorize('admin'), AuthController.getUsers);
 
 export default router;
 
+
+

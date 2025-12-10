@@ -8,49 +8,9 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteType, setDeleteType] = useState<'surveys' | 'evaluations' | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteMessage, setDeleteMessage] = useState('');
+  // Bulk delete modal removed (dangerous / not working well)
 
-  const handleBulkDelete = async () => {
-    if (!deleteType) return;
-
-    setIsDeleting(true);
-    try {
-      if (deleteType === 'surveys') {
-        // Delete all surveys and their responses
-        const deletePromises = data.survey_stats.map(stat =>
-          apiService.softDeleteSurvey(stat.id)
-        );
-        await Promise.all(deletePromises);
-        setDeleteMessage('Todas las encuestas han sido eliminadas exitosamente.');
-      } else if (deleteType === 'evaluations') {
-        // Get and delete all sensory evaluations
-        const evaluations = await apiService.getSensoryEvaluations();
-        const deletePromises = evaluations.evaluations.map(evalItem =>
-          apiService.softDeleteSensoryEvaluation(evalItem.evaluation_id)
-        );
-        await Promise.all(deletePromises);
-        setDeleteMessage('Todas las evaluaciones sensoriales han sido eliminadas exitosamente.');
-      }
-
-      // Reload page after successful deletion
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-    } catch (error) {
-      setDeleteMessage('Error al eliminar los elementos. Por favor, inténtalo de nuevo.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const openDeleteModal = (type: 'surveys' | 'evaluations') => {
-    setDeleteType(type);
-    setShowDeleteModal(true);
-    setDeleteMessage('');
-  };
+  // Bulk delete removed
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -218,10 +178,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         )}
       </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions (sin eliminar todo) */}
         <div className="bg-white p-8 rounded-3xl shadow-2xl border border-gray-100">
           <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Acciones Rápidas</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link
               href="/import"
               className="flex items-center justify-center px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
@@ -232,93 +192,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
               Importar Datos
             </Link>
             <Link
-              href="/surveys/create"
-              className="flex items-center justify-center px-6 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              href="/reports-planilla"
+              className="flex items-center justify-center px-6 py-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
               </svg>
-              Crear Encuesta
+              Ir a Planilla
             </Link>
             <Link
               href="#help"
-              className="flex items-center justify-center px-6 py-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              className="flex items-center justify-center px-6 py-4 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl hover:from-gray-600 hover:to-gray-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Ayuda
             </Link>
-            <button
-              onClick={() => openDeleteModal('surveys')}
-              className="flex items-center justify-center px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-            >
-              <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Limpiar Datos
-            </button>
           </div>
         </div>
-
-        {/* Delete Confirmation Modal */}
-        {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
-              <div className="text-center">
-                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-                  <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Confirmar Eliminación
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  ¿Estás seguro de que quieres eliminar{' '}
-                  <span className="font-semibold text-red-600">
-                    {deleteType === 'surveys' ? 'todas las encuestas' : 'todas las evaluaciones sensoriales'}
-                  </span>
-                  ? Esta acción no se puede deshacer.
-                </p>
-
-                {deleteMessage && (
-                  <div className={`mb-4 p-3 rounded-lg ${
-                    deleteMessage.includes('Error')
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {deleteMessage}
-                  </div>
-                )}
-
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => setShowDeleteModal(false)}
-                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-                    disabled={isDeleting}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleBulkDelete}
-                    disabled={isDeleting}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isDeleting ? (
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Eliminando...
-                      </div>
-                    ) : (
-                      'Eliminar'
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

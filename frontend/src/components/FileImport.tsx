@@ -1,9 +1,16 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { apiService } from '../utils/api';
 
 interface FileImportProps {
   onImportSuccess: (surveyId: string) => void;
+}
+
+interface ProductCategory {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
 }
 
 export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
@@ -15,12 +22,44 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
     responses: number;
     insights: string[];
   } | null>(null);
+  
+  // Category selection
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const regions = ["Perú", "Chile", "Venezuela", "España"];
+  const [selectedRegion, setSelectedRegion] = useState<string>("");
+
+  // Load categories on mount
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    setLoadingCategories(true);
+    try {
+      const data = await apiService.getCategories(true); // Get only active categories
+      setCategories(data.categories || []);
+    } catch (err) {
+      console.error('Error loading categories:', err);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
+    if (!selectedCategory) {
+      setError('Por favor selecciona una categoría primero');
+      return;
+    }
+    if (!selectedRegion) {
+      setError('Por favor selecciona una región primero');
+      return;
+    }
     if (acceptedFiles.length > 0) {
       handleFileUpload(acceptedFiles[0]);
     }
-  }, []);
+  }, [selectedCategory, selectedRegion]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -73,7 +112,13 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
         });
       }, 200);
 
-      const result = await apiService.importFile(file);
+      // Create FormData with file and category
+      const formData = new FormData();
+      formData.append('file', file);
+      if (selectedCategory) formData.append('category_id', selectedCategory);
+      if (selectedRegion) formData.append('region', selectedRegion);
+
+      const result = await apiService.importFileWithCategory(formData);
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -116,6 +161,60 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
         </p>
       </div>
 
+      {/* Category Selection */}
+      <div className="bg-white rounded-lg border-2 border-gray-200 p-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Categoría del Producto *
+        </label>
+        {loadingCategories ? (
+          <div className="flex items-center text-gray-500">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 mr-2"></div>
+            Cargando categorías...
+          </div>
+        ) : (
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            required
+          >
+            <option value="">Selecciona una categoría</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+                {category.description && ` - ${category.description}`}
+              </option>
+            ))}
+          </select>
+        )}
+        <p className="text-xs text-gray-500 mt-1">
+          Selecciona la categoría de producto para clasificar esta encuesta
+        </p>
+      </div>
+
+      {/* Region Selection */}
+      <div className="bg-white rounded-lg border-2 border-gray-200 p-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Región *
+        </label>
+        <select
+          value={selectedRegion}
+          onChange={(e) => setSelectedRegion(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          required
+        >
+          <option value="">Selecciona una región</option>
+          {regions.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-gray-500 mt-1">
+          La región se usará para filtrar y mostrar en la planilla de reportes
+        </p>
+      </div>
+
       {/* File Upload Area */}
       <div
         {...getRootProps()}
@@ -123,7 +222,9 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
           isDragActive
             ? 'border-blue-500 bg-blue-50'
             : 'border-gray-300 hover:border-gray-400'
-        } ${uploading ? 'pointer-events-none opacity-50' : ''}`}
+        } ${uploading ? 'pointer-events-none opacity-50' : ''} ${
+          !selectedCategory ? 'border-yellow-400 bg-yellow-50' : ''
+        }`}
       >
         {uploading ? (
           <div className="space-y-4">
@@ -164,6 +265,11 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
               <p className="text-sm text-gray-500">
                 Excel (.xlsx, .xls) or CSV files up to 10MB
               </p>
+              {!selectedCategory && (
+                <p className="text-sm font-semibold text-yellow-600 mt-2">
+                  ⚠️ Selecciona una categoría arriba antes de subir
+                </p>
+              )}
             </div>
           </>
         )}

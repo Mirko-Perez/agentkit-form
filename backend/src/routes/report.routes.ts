@@ -22,7 +22,7 @@ router.get('/dashboard', ReportController.getDashboardOverview);
  * @desc Generate sensory evaluation report
  * @access Private
  */
-router.get('/sensory/:evaluation_id', ReportController.generateSensoryReport);
+router.get('/sensory/:evaluation_id', (req, res) => ReportController.generateSensoryReport(req, res));
 
 /**
  * @route GET /api/reports/generated

@@ -27,7 +27,10 @@ export const ReportsPlanilla: React.FC = () => {
   const [reports, setReports] = useState<ReportPlanilla[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Filters
   const [filters, setFilters] = useState({
     type: "",
@@ -36,7 +39,7 @@ export const ReportsPlanilla: React.FC = () => {
     project_name: "",
     month: "",
     year: new Date().getFullYear().toString(),
-    authorization_status: ""
+    authorization_status: "",
   });
 
   const regions = ["Perú", "Chile", "Venezuela", "España"];
@@ -52,7 +55,7 @@ export const ReportsPlanilla: React.FC = () => {
     { value: "9", label: "Septiembre" },
     { value: "10", label: "Octubre" },
     { value: "11", label: "Noviembre" },
-    { value: "12", label: "Diciembre" }
+    { value: "12", label: "Diciembre" },
   ];
 
   const currentMonth = new Date().getMonth() + 1;
@@ -64,6 +67,7 @@ export const ReportsPlanilla: React.FC = () => {
   const loadReports = async () => {
     setLoading(true);
     setError(null);
+    setDeleteError(null);
     try {
       const data = await apiService.getGeneratedReports({
         type: filters.type || undefined,
@@ -75,6 +79,7 @@ export const ReportsPlanilla: React.FC = () => {
         authorization_status: filters.authorization_status || undefined,
       });
       setReports(data.reports || []);
+      setSelected(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error loading reports");
     } finally {
@@ -90,19 +95,84 @@ export const ReportsPlanilla: React.FC = () => {
       project_name: "",
       month: "",
       year: new Date().getFullYear().toString(),
-      authorization_status: ""
+      authorization_status: "",
     });
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === reports.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(reports.map((r) => r.report_id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelected(next);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selected.size === 0) return;
+    const confirm = window.confirm(
+      `Eliminar ${selected.size} reporte(s) seleccionados? Esta acción no se puede deshacer.`
+    );
+    if (!confirm) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const toDelete = reports.filter((r) => selected.has(r.report_id));
+      const results = await Promise.allSettled(
+        toDelete.map((r) => {
+          if (r.report_type === "sensory") {
+            return apiService.softDeleteSensoryEvaluation(r.evaluation_id);
+          }
+          return apiService.softDeleteSurvey(r.evaluation_id);
+        })
+      );
+
+      const failures = results.filter(
+        (res) =>
+          res.status === "rejected" &&
+          !(res.reason instanceof Error && res.reason.message?.includes("404"))
+      );
+
+      if (failures.length > 0) {
+        setDeleteError("Algunos reportes no se pudieron eliminar.");
+      }
+
+      await loadReports();
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error
+          ? err.message
+          : "Error al eliminar los reportes seleccionados"
+      );
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
     const styles = {
       approved: "bg-green-100 text-green-800",
       pending: "bg-yellow-100 text-yellow-800",
-      rejected: "bg-red-100 text-red-800"
+      rejected: "bg-red-100 text-red-800",
     };
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${styles[status as keyof typeof styles] || styles.pending}`}>
-        {status === "approved" ? "✅ Aprobado" : status === "rejected" ? "❌ Rechazado" : "⏳ Pendiente"}
+      <span
+        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+          styles[status as keyof typeof styles] || styles.pending
+        }`}
+      >
+        {status === "approved"
+          ? "✅ Aprobado"
+          : status === "rejected"
+          ? "❌ Rechazado"
+          : "⏳ Pendiente"}
       </span>
     );
   };
@@ -111,13 +181,35 @@ export const ReportsPlanilla: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            📊 Planilla de Reportes
-          </h1>
-          <p className="text-gray-600">
-            Tabla completa de reportes generados con filtros por región, proyecto y fecha
-          </p>
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              📊 Planilla de Reportes
+            </h1>
+            <p className="text-gray-600">
+              Tabla completa de reportes generados con filtros por región,
+              proyecto y fecha
+            </p>
+          </div>
+          <Link
+            href="/"
+            className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            Volver al Home
+          </Link>
         </div>
 
         {/* Filters */}
@@ -130,7 +222,9 @@ export const ReportsPlanilla: React.FC = () => {
               </label>
               <select
                 value={filters.type}
-                onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+                onChange={(e) =>
+                  setFilters({ ...filters, type: e.target.value })
+                }
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Todos</option>
@@ -145,7 +239,9 @@ export const ReportsPlanilla: React.FC = () => {
               </label>
               <select
                 value={filters.region}
-                onChange={(e) => setFilters({ ...filters, region: e.target.value })}
+                onChange={(e) =>
+                  setFilters({ ...filters, region: e.target.value })
+                }
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Todas</option>
@@ -163,7 +259,9 @@ export const ReportsPlanilla: React.FC = () => {
               </label>
               <select
                 value={filters.month}
-                onChange={(e) => setFilters({ ...filters, month: e.target.value })}
+                onChange={(e) =>
+                  setFilters({ ...filters, month: e.target.value })
+                }
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Todos</option>
@@ -182,7 +280,9 @@ export const ReportsPlanilla: React.FC = () => {
               <input
                 type="number"
                 value={filters.year}
-                onChange={(e) => setFilters({ ...filters, year: e.target.value })}
+                onChange={(e) =>
+                  setFilters({ ...filters, year: e.target.value })
+                }
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 min="2020"
                 max={new Date().getFullYear() + 1}
@@ -195,7 +295,12 @@ export const ReportsPlanilla: React.FC = () => {
               </label>
               <select
                 value={filters.authorization_status}
-                onChange={(e) => setFilters({ ...filters, authorization_status: e.target.value })}
+                onChange={(e) =>
+                  setFilters({
+                    ...filters,
+                    authorization_status: e.target.value,
+                  })
+                }
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Todos</option>
@@ -212,7 +317,9 @@ export const ReportsPlanilla: React.FC = () => {
               <input
                 type="text"
                 value={filters.project_name}
-                onChange={(e) => setFilters({ ...filters, project_name: e.target.value })}
+                onChange={(e) =>
+                  setFilters({ ...filters, project_name: e.target.value })
+                }
                 placeholder="Ej: Solimar Boquillon"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
@@ -231,6 +338,25 @@ export const ReportsPlanilla: React.FC = () => {
 
         {/* Reports Table */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Bulk actions bar */}
+          <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200">
+            <div className="text-sm text-gray-600">
+              Seleccionados:{" "}
+              <span className="font-semibold">{selected.size}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              {deleteError && (
+                <span className="text-red-600 text-sm">{deleteError}</span>
+              )}
+              <button
+                onClick={handleDeleteSelected}
+                disabled={deleting || selected.size === 0}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? "Eliminando..." : "Eliminar seleccionados"}
+              </button>
+            </div>
+          </div>
           {loading ? (
             <div className="p-12 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -242,29 +368,72 @@ export const ReportsPlanilla: React.FC = () => {
             </div>
           ) : reports.length === 0 ? (
             <div className="p-12 text-center">
-              <p className="text-gray-500">No se encontraron reportes con los filtros seleccionados</p>
+              <p className="text-gray-500">
+                No se encontraron reportes con los filtros seleccionados
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-bold">Reporte</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold">Tipo</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold">Región</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold">Proyecto</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold">Panelistas</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold">Fecha</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold">Fórmula Ganadora</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold">Estado</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold">Acciones</th>
+                    <th className="px-4 py-4 text-center text-sm font-bold">
+                      <input
+                        type="checkbox"
+                        checked={
+                          selected.size === reports.length && reports.length > 0
+                        }
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                      />
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-bold">
+                      Reporte
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-bold">
+                      Tipo
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-bold">
+                      Región
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-bold">
+                      Proyecto
+                    </th>
+                    <th className="px-6 py-4 text-center text-sm font-bold">
+                      Panelistas
+                    </th>
+                    <th className="px-6 py-4 text-center text-sm font-bold">
+                      Fecha
+                    </th>
+                    <th className="px-6 py-4 text-center text-sm font-bold">
+                      Fórmula Ganadora
+                    </th>
+                    <th className="px-6 py-4 text-center text-sm font-bold">
+                      Estado
+                    </th>
+                    <th className="px-6 py-4 text-center text-sm font-bold">
+                      Acciones
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {reports.map((report) => (
-                    <tr key={report.report_id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={report.report_id}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="px-4 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(report.report_id)}
+                          onChange={() => toggleSelect(report.report_id)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                        />
+                      </td>
                       <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">{report.report_title}</div>
+                        <div className="font-medium text-gray-900">
+                          {report.report_title}
+                        </div>
                         {report.total_products && (
                           <div className="text-sm text-gray-500">
                             {report.total_products} productos/SKUs
@@ -272,33 +441,60 @@ export const ReportsPlanilla: React.FC = () => {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          report.report_type === "sensory" 
-                            ? "bg-purple-100 text-purple-800" 
-                            : "bg-blue-100 text-blue-800"
-                        }`}>
-                          {report.report_type === "sensory" ? "Sensorial" : "Encuesta"}
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            report.report_type === "sensory"
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-blue-100 text-blue-800"
+                          }`}
+                        >
+                          {report.report_type === "sensory"
+                            ? "Sensorial"
+                            : "Encuesta"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-700">{report.region || "N/A"}</td>
-                      <td className="px-6 py-4 text-gray-700">{report.project_name || "N/A"}</td>
+                      <td className="px-6 py-4 text-gray-700">
+                        {report.region || "N/A"}
+                      </td>
+                      <td className="px-6 py-4 text-gray-700">
+                        {report.project_name || "N/A"}
+                      </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="font-semibold text-gray-900">{report.total_participants}</span>
+                        <span className="font-semibold text-gray-900">
+                          {report.total_participants}
+                        </span>
                       </td>
                       <td className="px-6 py-4 text-center text-gray-600">
-                        {new Date(report.generated_at).toLocaleDateString("es-ES")}
-                        <div className="text-xs text-gray-500">{report.report_month_name}</div>
+                        {new Date(report.generated_at).toLocaleDateString(
+                          "es-ES"
+                        )}
+                        <div className="text-xs text-gray-500">
+                          {report.report_month_name}
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        {report.winning_formula_percentage !== null ? (
+                        {report.winning_formula_percentage != null &&
+                        report.winning_formula_percentage !== undefined ? (
                           <div>
-                            <span className={`font-bold ${
-                              report.is_winning_formula ? "text-green-600" : "text-orange-600"
-                            }`}>
-                              {report.winning_formula_percentage.toFixed(1)}%
+                            <span
+                              className={`font-bold ${
+                                report.is_winning_formula
+                                  ? "text-green-600"
+                                  : "text-orange-600"
+                              }`}
+                            >
+                              {typeof report.winning_formula_percentage ===
+                              "number"
+                                ? report.winning_formula_percentage.toFixed(1)
+                                : parseFloat(
+                                    report.winning_formula_percentage
+                                  ).toFixed(1)}
+                              %
                             </span>
                             {report.is_winning_formula && (
-                              <div className="text-xs text-green-600">✅ Cumple umbral</div>
+                              <div className="text-xs text-green-600">
+                                ✅ Cumple umbral
+                              </div>
                             )}
                           </div>
                         ) : (
@@ -332,26 +528,36 @@ export const ReportsPlanilla: React.FC = () => {
         {reports.length > 0 && (
           <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-              <div className="text-3xl font-bold text-blue-600">{reports.length}</div>
+              <div className="text-3xl font-bold text-blue-600">
+                {reports.length}
+              </div>
               <div className="text-sm text-gray-600 mt-1">Total Reportes</div>
             </div>
             <div className="bg-white rounded-xl shadow-lg p-6 text-center">
               <div className="text-3xl font-bold text-green-600">
-                {reports.filter(r => r.authorization_status === "approved").length}
+                {
+                  reports.filter((r) => r.authorization_status === "approved")
+                    .length
+                }
               </div>
               <div className="text-sm text-gray-600 mt-1">Aprobados</div>
             </div>
             <div className="bg-white rounded-xl shadow-lg p-6 text-center">
               <div className="text-3xl font-bold text-yellow-600">
-                {reports.filter(r => r.authorization_status === "pending").length}
+                {
+                  reports.filter((r) => r.authorization_status === "pending")
+                    .length
+                }
               </div>
               <div className="text-sm text-gray-600 mt-1">Pendientes</div>
             </div>
             <div className="bg-white rounded-xl shadow-lg p-6 text-center">
               <div className="text-3xl font-bold text-purple-600">
-                {reports.filter(r => r.is_winning_formula).length}
+                {reports.filter((r) => r.is_winning_formula).length}
               </div>
-              <div className="text-sm text-gray-600 mt-1">Fórmulas Ganadoras</div>
+              <div className="text-sm text-gray-600 mt-1">
+                Fórmulas Ganadoras
+              </div>
             </div>
           </div>
         )}
@@ -359,4 +565,3 @@ export const ReportsPlanilla: React.FC = () => {
     </div>
   );
 };
-

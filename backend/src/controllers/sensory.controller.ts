@@ -22,6 +22,11 @@ export class SensoryController {
       // Soft delete evaluation and related data
       await query('UPDATE sensory_evaluations SET is_deleted = true WHERE evaluation_id = $1', [evaluation_id]);
       await query('UPDATE sensory_products SET is_deleted = true WHERE evaluation_id = $1', [evaluation_id]);
+      // Invalidate generated reports for this evaluation
+      await query(
+        'UPDATE generated_reports SET is_valid = false, expires_at = NOW() WHERE evaluation_id = $1 AND report_type = $2',
+        [evaluation_id, 'sensory']
+      );
 
       res.json({ message: 'Sensory evaluation deleted successfully' });
     } catch (error) {

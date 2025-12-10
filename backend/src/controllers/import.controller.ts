@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import multer from 'multer';
 import { query } from '../config/database';
 import { ExcelProcessor, ExcelImportResult } from '../utils/excelProcessor';
+import { SensoryProcessor, SensoryImportResult } from '../utils/sensoryProcessor';
 import { AgentKitService } from '../utils/agentKit';
 
 // Configure multer for file uploads
@@ -39,45 +40,40 @@ export class ImportController {
       }
 
       const file = req.file;
-      let importResult: ExcelImportResult;
+      const categoryId = req.body.category_id || null; // Get category from form data
+      const region = req.body.region || null;
+      const country = req.body.country || null;
+      const projectName = req.body.project_name || null;
+      
+      // Process as sensory evaluation (ALL imports are sensory)
+      const isCSV = file.mimetype === 'text/csv' || file.mimetype === 'application/csv';
+      const sensoryResult = await SensoryProcessor.processSensoryFile(file.buffer, file.originalname, isCSV);
 
-      // Process based on file type
-      if (file.mimetype === 'text/csv' || file.mimetype === 'application/csv') {
-        importResult = await ExcelProcessor.processCSVFile(file.buffer, file.originalname);
-      } else {
-        importResult = await ExcelProcessor.processExcelFile(file.buffer, file.originalname);
-      }
+      // Save sensory evaluation to database with category
+      await ImportController.saveSensoryToDatabase(sensoryResult, categoryId, region, country, projectName);
 
-      // Save to database
-      await ImportController.saveImportToDatabase(importResult);
-
-      // Generate initial insights (with fallback)
-      let insights: string[] = [];
-      try {
-        insights = await AgentKitService.generateSurveyInsights(
-          importResult.survey,
-          importResult.responses,
-          [] // We'll calculate stats after saving
-        );
-      } catch (aiError) {
-        console.warn('AI insights generation failed during import, using fallback:', aiError);
-        insights = [
-          'AI analysis completed successfully.',
-          `Imported ${importResult.responses.length} responses from your data.`
-        ];
-      }
+      // Generate insights message
+      const insights = [
+        `Evaluación sensorial importada exitosamente`,
+        `${sensoryResult.evaluations.length} panelistas evaluaron ${sensoryResult.products.length} muestras`,
+        `ID de evaluación: ${sensoryResult.evaluation_id}`
+      ];
 
       res.status(201).json({
-        message: 'Data imported successfully',
-        survey_id: importResult.survey.id,
-        imported_responses: importResult.responses.length,
-        insights: insights.slice(0, 3) // Return first 3 insights
+        message: 'Sensory evaluation imported successfully',
+        survey_id: sensoryResult.evaluation_id, // Use evaluation_id as survey_id for compatibility
+        evaluation_id: sensoryResult.evaluation_id,
+        imported_responses: sensoryResult.evaluations.length,
+        products: sensoryResult.products.length,
+        insights: insights
       });
     } catch (error) {
       console.error('Error importing file:', error);
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       res.status(500).json({
         error: 'Failed to import file',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
       });
     }
   }
@@ -142,15 +138,71 @@ export class ImportController {
   }
 
   /**
-   * Save imported data to database
+   * Save sensory evaluation to database
    */
-  private static async saveImportToDatabase(importResult: ExcelImportResult): Promise<void> {
+  private static async saveSensoryToDatabase(
+    sensoryResult: SensoryImportResult,
+    categoryId?: string | null,
+    region?: string | null,
+    country?: string | null,
+    projectName?: string | null
+  ): Promise<void> {
+    const { evaluation_id, products, evaluations } = sensoryResult;
+
+    // Insert products
+    for (const product of products) {
+      await query(
+        `INSERT INTO sensory_products (id, evaluation_id, name, code, description, position, is_deleted, region, project_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          product.id,
+          product.evaluation_id,
+          product.name,
+          product.code || null,
+          product.description || null,
+          product.position,
+          false,
+          region,
+          projectName
+        ]
+      );
+    }
+
+    // Insert evaluations (panelist responses)
+    for (const evaluation of evaluations) {
+      await query(
+        `INSERT INTO sensory_evaluations (
+          id, evaluation_id, panelist_id, panelist_name, panelist_email,
+          preferences, submitted_at, is_deleted, category_id, region, country, project_name
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [
+          evaluation.id,
+          evaluation.evaluation_id,
+          evaluation.panelist_id,
+          evaluation.panelist_name || null,
+          evaluation.panelist_email || null,
+          JSON.stringify(evaluation.preferences),
+          evaluation.submitted_at,
+          false,
+          categoryId,
+          region,
+          country,
+          projectName
+        ]
+      );
+    }
+  }
+
+  /**
+   * Save imported data to database (Legacy - for backwards compatibility)
+   */
+  private static async saveImportToDatabase(importResult: ExcelImportResult, categoryId?: string | null): Promise<void> {
     const { survey, responses } = importResult;
 
-    // Insert survey
+    // Insert survey with category
     await query(
-      `INSERT INTO surveys (id, title, description, questions, is_active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO surveys (id, title, description, questions, is_active, created_at, updated_at, category_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         survey.id,
         survey.title,
@@ -158,7 +210,8 @@ export class ImportController {
         JSON.stringify(survey.questions),
         survey.is_active,
         survey.created_at,
-        survey.updated_at
+        survey.updated_at,
+        categoryId
       ]
     );
 

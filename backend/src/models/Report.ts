@@ -46,6 +46,15 @@ export interface SensoryStatisticalAnalysis {
     critical_value: number;
     interpretation: string;
   };
+  iso_5495: {
+    test_statistic: number;
+    critical_value: number;
+    significance_level: number;
+    is_significant: boolean;
+    interpretation: string;
+    num_samples: number;
+    num_panelists: number;
+  };
   pairwise_comparisons: {
     product_a: string;
     product_b: string;
@@ -53,6 +62,14 @@ export interface SensoryStatisticalAnalysis {
     confidence_level: number;
   }[];
   overall_significance: boolean;
+  statistical_approval_recommended?: boolean; // TRUE if statistically significant even if <70%
+}
+
+export interface CommentWithFrequency {
+  text: string;
+  count: number;
+  percentage: number;
+  is_representative: boolean; // TRUE if >= 3 mentions, FALSE if < 3
 }
 
 export interface SensoryReport {
@@ -70,16 +87,16 @@ export interface SensoryReport {
   preference_analysis: SensoryPreferenceStats[];
   statistical_analysis: SensoryStatisticalAnalysis;
   qualitative_feedback: {
-    top_positive_comments: string[];
-    top_negative_comments: string[];
+    top_positive_comments: CommentWithFrequency[];
+    top_negative_comments: CommentWithFrequency[];
     common_themes: string[];
     product_specific_feedback?: {
       product_id: string;
       product_name: string;
       product_code?: string;
-      first_place_comments: string[];
-      second_place_comments: string[];
-      third_place_comments: string[];
+      first_place_comments: CommentWithFrequency[];
+      second_place_comments: CommentWithFrequency[];
+      third_place_comments: CommentWithFrequency[];
       total_comments: number;
     }[];
   };
