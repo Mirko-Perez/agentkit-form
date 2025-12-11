@@ -74,3 +74,4 @@ COMMENT ON COLUMN product_categories.name IS 'Nombre único de la categoría (ej
 COMMENT ON COLUMN product_categories.is_active IS 'Indica si la categoría está activa para ser usada';
 
 
+

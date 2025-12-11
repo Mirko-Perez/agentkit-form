@@ -97,3 +97,4 @@ Nginx/Apache (idea):
 - Respaldar `DATABASE_URL`, `JWT_SECRET`, `OPENAI_API_KEY` (si se usa).
 - Programar backups regulares de `emcopre_analisis_sensorial`.
 
+

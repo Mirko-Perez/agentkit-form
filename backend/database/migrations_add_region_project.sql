@@ -76,3 +76,4 @@ COMMENT ON COLUMN report_authorizations.winning_formula_threshold IS 'Minimum pe
 
 
 
+

@@ -281,3 +281,4 @@ COMMENT ON FUNCTION get_iso_5495_critical_value IS 'Obtiene el valor crítico pa
 COMMENT ON FUNCTION check_iso_5495_significance IS 'Determina si un resultado es estadísticamente significativo según ISO 5495';
 
 
+

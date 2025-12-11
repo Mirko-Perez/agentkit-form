@@ -13,3 +13,4 @@ CREATE INDEX IF NOT EXISTS idx_sensory_evaluations_category ON sensory_evaluatio
 CREATE INDEX IF NOT EXISTS idx_sensory_products_position ON sensory_products(position);
 
 
+
