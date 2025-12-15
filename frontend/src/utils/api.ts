@@ -1,6 +1,7 @@
 import { Survey, SurveyResponse, SurveyReport, DashboardOverview, SensoryReport } from '../types/survey';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+// Use relative URL when served from same server, otherwise use env var or default
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? '/api' : 'http://localhost:3001/api');
 
 class ApiService {
   private token: string | null = null;

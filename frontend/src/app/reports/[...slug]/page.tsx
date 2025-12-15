@@ -7,11 +7,10 @@ import { SensoryReportComponent } from '../../../components/SensoryReport';
 import { SensoryReport } from '../../../types/survey';
 import { apiService } from '../../../utils/api';
 
-export const dynamicParams = true; // Allow dynamic params for static export
-
 export default function ReportPage() {
   const params = useParams();
-  const surveyId = params?.id as string;
+  const slug = params?.slug as string | string[];
+  const surveyId = Array.isArray(slug) ? slug[0] : slug;
 
   const [report, setReport] = useState<SensoryReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,7 +26,6 @@ export default function ReportPage() {
       }
 
       try {
-        // Try as sensory report first
         const reportData = await apiService.getSensoryReport(surveyId);
         setReport(reportData);
       } catch (err) {

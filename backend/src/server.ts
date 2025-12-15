@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import path from 'path';
+import { existsSync } from 'fs';
 
 // Import routes
 import surveyRoutes from './routes/survey.routes';
@@ -20,9 +22,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable CSP for static files
+}));
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL || '*', // Allow all origins when serving from same server
   credentials: true
 }));
 
@@ -54,9 +58,37 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/sensory', sensoryRoutes);
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// 2. Servir archivos estáticos del frontend
+const staticPath = path.join(__dirname, '../frontend/out');
+
+console.log('Directorio estático del frontend:', staticPath);
+if (existsSync(staticPath)) {
+  app.use(express.static(staticPath));
+  console.log('✅ Frontend estático encontrado y servido');
+} else {
+  console.log('⚠️  Frontend estático no encontrado en:', staticPath);
+}
+
+// 3. Manejar rutas no encontradas de la API
+app.use(/^\/api\/.*$/, (req, res) => {
+  res.status(404).json({ error: 'API route not found' });
+});
+
+// 4. Catch-all handler: enviar el archivo index.html para rutas del frontend
+app.get('*', (req, res) => {
+  const indexPath = path.join(staticPath, 'index.html');
+
+  if (existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    console.error('Archivo index.html no encontrado en:', indexPath);
+    res.status(404).send('Frontend no encontrado. Ejecuta: npm run build:all');
+  }
 });
 
 // Error handling middleware

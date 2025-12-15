@@ -1,7 +1,24 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: 'export',
+  distDir: 'out',
+  images: {
+    unoptimized: true,
+  },
+  trailingSlash: true,
+  // Para desarrollo: proxy API calls al backend
+  async rewrites() {
+    if (process.env.NODE_ENV === 'development') {
+      return [
+        {
+          source: '/api/:path*',
+          destination: 'http://localhost:3001/api/:path*',
+        },
+      ];
+    }
+    return [];
+  },
 };
 
 export default nextConfig;

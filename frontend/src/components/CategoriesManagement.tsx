@@ -12,10 +12,16 @@ interface ProductCategory {
   is_active: boolean;
 }
 
-interface CategoryStats extends ProductCategory {
+interface CategoryStats {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
   survey_count: number;
   sensory_evaluation_count: number;
   total_usage: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export default function CategoriesManagement() {
@@ -308,6 +314,3 @@ export default function CategoriesManagement() {
     </div>
   );
 }
-
-
-

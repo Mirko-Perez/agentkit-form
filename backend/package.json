@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "nodemon --exec ts-node src/server.ts",
     "build": "tsc",
+    "build:frontend": "cd ../frontend && npm install && npm run build",
+    "build:all": "npm run build:frontend && npm run build",
     "start": "node dist/server.js",
+    "start:prod": "NODE_ENV=production node dist/server.js",
     "db:init": "psql -d $DB_NAME -f database/init.sql",
     "db:create": "createdb $DB_NAME || echo 'Database already exists'",
     "db:setup": "npm run db:create && npm run db:init",

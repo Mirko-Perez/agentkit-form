@@ -1,31 +1,28 @@
-# Despliegue – EMCOPRE Análisis Sensorial
+# 🚀 Despliegue - EMCOPRE Análisis Sensorial
 
-## Requisitos
-- Node.js 18+ (ideal 20+)
-- PostgreSQL 14+
-- Puertos por defecto: backend 3001, frontend 3000 (ajusta si hace falta)
+## 📋 Lo que tienes
 
-## 1) Clonar
+- **Backend**: Express.js con TypeScript
+- **Frontend**: Next.js (ya compilado estáticamente)
+- **Base de datos**: PostgreSQL con 9 archivos de migración
+- **Puerto único**: Todo funciona en puerto 3001
+
+## 🛠️ Pasos para desplegar
+
+### 1. Instalar dependencias del sistema
 ```bash
-git clone <repo>
-cd agentkit-form
+# Node.js 18+ y PostgreSQL
+sudo apt update
+sudo apt install -y nodejs npm postgresql postgresql-contrib
 ```
 
-## 2) Backend `.env`
-Crea `backend/.env`:
-```
-PORT=3001
-DATABASE_URL=postgres://<user>:<pass>@<host>:<port>/emcopre_analisis_sensorial
-JWT_SECRET=un_secreto_seguro
-OPENAI_API_KEY=opcional
-```
+### 2. Configurar base de datos
+```bash
+# Crear base de datos
+sudo -u postgres createdb emcopre_analisis_sensorial
 
-## 3) Base de datos
-```bash
-createdb emcopre_analisis_sensorial
-```
-Migraciones (en orden sugerido):
-```bash
+# Ejecutar migraciones en orden
+cd backend
 psql -d emcopre_analisis_sensorial -f database/sensory_tables.sql
 psql -d emcopre_analisis_sensorial -f database/auth_tables.sql
 psql -d emcopre_analisis_sensorial -f database/migrations_add_region_project.sql
@@ -35,66 +32,78 @@ psql -d emcopre_analisis_sensorial -f database/fix_sensory_tables.sql
 psql -d emcopre_analisis_sensorial -f database/reports_table_view.sql
 ```
 
-## 4) Dependencias
-```bash
-cd backend && npm install
-cd ../frontend && npm install
-```
-
-## 5) Modo desarrollo (verificación)
-Backend:
+### 3. Configurar variables de entorno
 ```bash
 cd backend
-npm run dev
+cp env.example .env
+nano .env  # Editar con tus valores reales
 ```
-Frontend (otra terminal):
-```bash
-cd frontend
-npm run dev
-```
-- Backend health: http://localhost:3001/health  
-- Frontend: http://localhost:3000
 
-Credenciales admin por defecto:
-- usuario: admin o admin@gmail.com
-- pass: admin123
-
-## 6) Build producción
-Backend:
+### 4. Instalar dependencias del proyecto
 ```bash
 cd backend
-npm run build
-```
-Frontend:
-```bash
+npm install
+
 cd ../frontend
-npm run build
-npm run start
+npm install
 ```
 
-## 7) Ejemplo PM2 + reverse proxy
-Backend:
+### 5. Construir para producción
 ```bash
 cd backend
-pm2 start dist/server.js --name emcopre-api
+npm run build:all  # Construye frontend + backend
 ```
-Frontend:
+
+### 6. Iniciar aplicación
 ```bash
-cd frontend
-pm2 start "npm run start" --name emcopre-web
+cd backend
+npm start  # Puerto 3001
 ```
-Nginx/Apache (idea):
-- `/api` → http://127.0.0.1:3001
-- `/` → http://127.0.0.1:3000
 
-## 8) Checklist post-deploy
-- Login admin y cambiar password si aplica.
-- Subir una evaluación sensorial (elige categoría y región).
-- Ver en `/reports-planilla`; probar “Eliminar seleccionados”.
-- Regenerar reporte con `?force=true` si necesitas refrescar datos.
+### 7. Verificar funcionamiento
+```bash
+# Health check
+curl http://localhost:3001/health
 
-## 9) Backups y secretos
-- Respaldar `DATABASE_URL`, `JWT_SECRET`, `OPENAI_API_KEY` (si se usa).
-- Programar backups regulares de `emcopre_analisis_sensorial`.
+# Verificar frontend
+curl -s http://localhost:3001/ | head -5
+```
+
+## 🎯 URLs de acceso
+
+- **Aplicación**: `http://tu-servidor:3001`
+- **Health check**: `http://tu-servidor:3001/health`
+- **APIs**: `http://tu-servidor:3001/api/*`
+
+## 🔑 Credenciales por defecto
+
+- **Usuario**: admin@gmail.com
+- **Contraseña**: admin123
+
+## 🔧 Para producción con PM2
+
+```bash
+npm install -g pm2
+cd backend
+pm2 start dist/server.js --name emcopre-app
+pm2 save
+pm2 startup
+```
+
+## 📊 Verificar que todo funciona
+
+1. ✅ Health check responde
+2. ✅ Frontend carga (HTML visible)
+3. ✅ Login funciona
+4. ✅ Puedes subir archivos CSV
+5. ✅ Se generan reportes
+6. ✅ Planilla de reportes funciona
+
+---
+
+**¡Eso es todo!** La aplicación usa un solo puerto y un solo proceso. 🎉
+
+
+
 
 

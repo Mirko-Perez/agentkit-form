@@ -35,7 +35,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         return;
       }
     }
-  }, [isAuthenticated, isLoading, isAdmin, isEditor, requireAdmin, requireEditor, router]);
+  }, [
+    isAuthenticated,
+    isLoading,
+    isAdmin,
+    isEditor,
+    requireAdmin,
+    requireEditor,
+    router,
+  ]);
 
   if (isLoading) {
     return (
@@ -57,7 +65,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 text-lg font-semibold">Acceso Denegado</p>
-          <p className="text-gray-600 mt-2">No tienes permisos para acceder a esta página</p>
+          <p className="text-gray-600 mt-2">
+            No tienes permisos para acceder a esta página
+          </p>
         </div>
       </div>
     );
@@ -68,7 +78,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 text-lg font-semibold">Acceso Denegado</p>
-          <p className="text-gray-600 mt-2">No tienes permisos para acceder a esta página</p>
+          <p className="text-gray-600 mt-2">
+            No tienes permisos para acceder a esta página
+          </p>
         </div>
       </div>
     );
@@ -76,8 +88,3 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   return <>{children}</>;
 };
-
-
-
-
-
