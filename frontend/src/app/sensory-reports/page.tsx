@@ -5,10 +5,12 @@ interface SensoryReportPageProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export const dynamic = "force-dynamic";
-
 export default function SensoryReportPage({
   searchParams,
 }: SensoryReportPageProps) {
-  return <SensoryReportPageClient />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SensoryReportPageClient />
+    </Suspense>
+  );
 }

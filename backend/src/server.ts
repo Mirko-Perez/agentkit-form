@@ -63,16 +63,20 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// 2. Servir archivos estáticos del frontend
-const staticPath = path.join(__dirname, '../../frontend/out');
+// 2. Servir archivos estáticos del frontend (Next.js export)
+const staticPaths = [
+  path.join(__dirname, '..'), // All static files from Next.js export
+];
 
-console.log('Directorio estático del frontend:', staticPath);
-if (existsSync(staticPath)) {
-  app.use(express.static(staticPath));
-  console.log('✅ Frontend estático encontrado y servido');
-} else {
-  console.log('⚠️  Frontend estático no encontrado en:', staticPath);
-}
+staticPaths.forEach(staticPath => {
+  console.log('Directorio estático del frontend:', staticPath);
+  if (existsSync(staticPath)) {
+    app.use(express.static(staticPath));
+    console.log('✅ Frontend estático encontrado y servido desde:', staticPath);
+  } else {
+    console.log('⚠️  Frontend estático no encontrado en:', staticPath);
+  }
+});
 
 // 3. Manejar rutas no encontradas de la API
 app.use(/^\/api\/.*$/, (req, res) => {
@@ -81,7 +85,12 @@ app.use(/^\/api\/.*$/, (req, res) => {
 
 // 4. Catch-all handler: enviar el archivo index.html para rutas del frontend
 app.get('*', (req, res) => {
-  const indexPath = path.join(staticPath, 'index.html');
+  // Skip API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API route not found' });
+  }
+
+  const indexPath = path.join(__dirname, '../index.html');
 
   if (existsSync(indexPath)) {
     res.sendFile(indexPath);

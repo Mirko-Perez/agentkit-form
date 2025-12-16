@@ -11,6 +11,24 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Frontend build outputs (copied from frontend build)
+__next.*
+index.html
+index.txt
+favicon.ico
+*.svg
+_next/
+categories/
+import/
+login/
+register/
+reports/
+reports-planilla/
+sensory-reports/
+404/
+404.html
+_not-found/
+
 # Build outputs
 dist/
 build/

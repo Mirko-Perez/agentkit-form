@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
+import Link from "next/link";
 import { useDropzone } from "react-dropzone";
 import { apiService } from "../utils/api";
 
@@ -362,12 +363,12 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
           )}
 
           <div className="mt-4 flex space-x-3">
-            <a
+            <Link
               href={`/reports?id=${success.surveyId}`}
               className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               View Report
-            </a>
+            </Link>
             <a
               href="/"
               className="inline-block px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"

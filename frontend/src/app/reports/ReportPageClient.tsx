@@ -16,13 +16,8 @@ export default function ReportPageClient() {
   const [error, setError] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
 
-  console.log("ReportPageClient - surveyId from searchParams:", surveyId);
-
   useEffect(() => {
     const loadReport = async () => {
-      console.log("loadReport - surveyId:", surveyId);
-      console.log("loadReport - !surveyId:", !surveyId);
-
       if (!surveyId) {
         setError("ID de evaluación no válido");
         setLoading(false);
@@ -42,7 +37,12 @@ export default function ReportPageClient() {
       }
     };
 
-    loadReport();
+    // Only load if we have a surveyId (prevent loading during SSR/static generation)
+    if (surveyId) {
+      loadReport();
+    } else {
+      setLoading(false);
+    }
   }, [surveyId]);
 
   const regenerateReport = async () => {

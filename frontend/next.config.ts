@@ -1,19 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: 'export',
   images: {
     unoptimized: true,
   },
-  async rewrites() {
-    if (process.env.NODE_ENV === 'development') {
-      return [
-        {
-          source: '/api/:path*',
-          destination: 'http://localhost:3001/api/:path*',
-        },
-      ];
-    }
-    return [];
+  trailingSlash: true,
+  generateBuildId: async () => {
+    return 'build-' + Date.now()
   },
 };
 

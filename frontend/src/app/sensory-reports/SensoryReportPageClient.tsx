@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { SensoryReportComponent } from "../../components/SensoryReport";
 import { SensoryReport } from "../../types/survey";
@@ -34,7 +35,12 @@ export default function SensoryReportPageClient() {
       }
     };
 
-    loadReport();
+    // Only load if we have an evaluationId (prevent loading during SSR/static generation)
+    if (evaluationId) {
+      loadReport();
+    } else {
+      setLoading(false);
+    }
   }, [evaluationId]);
 
   const regenerateReport = async () => {
