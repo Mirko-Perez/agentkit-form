@@ -189,6 +189,7 @@ class ApiService {
     month?: string;
     year?: string;
     authorization_status?: string;
+    category_id?: string;
   }): Promise<{
     reports: Array<any>;
     total: number;

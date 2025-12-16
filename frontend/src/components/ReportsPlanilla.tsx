@@ -24,6 +24,13 @@ interface ReportPlanilla {
   total_products: number | null;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+}
+
 export const ReportsPlanilla: React.FC = () => {
   const [reports, setReports] = useState<ReportPlanilla[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +38,7 @@ export const ReportsPlanilla: React.FC = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -41,6 +49,7 @@ export const ReportsPlanilla: React.FC = () => {
     month: "",
     year: new Date().getFullYear().toString(),
     authorization_status: "",
+    category_id: "",
   });
 
   const regions = ["Perú", "Chile", "Venezuela", "España"];
@@ -62,8 +71,21 @@ export const ReportsPlanilla: React.FC = () => {
   const _currentMonth = new Date().getMonth() + 1;
 
   useEffect(() => {
+    loadCategories();
+  }, []);
+
+  useEffect(() => {
     loadReports();
   }, [filters]);
+
+  const loadCategories = async () => {
+    try {
+      const data = await apiService.getCategories(true); // Only active categories
+      setCategories(data.categories || []);
+    } catch (err) {
+      console.error("Error loading categories:", err);
+    }
+  };
 
   const loadReports = async () => {
     setLoading(true);
@@ -78,6 +100,7 @@ export const ReportsPlanilla: React.FC = () => {
         month: filters.month || undefined,
         year: filters.year || undefined,
         authorization_status: filters.authorization_status || undefined,
+        category_id: filters.category_id || undefined,
       });
       setReports(data.reports || []);
       setSelected(new Set());
@@ -97,6 +120,7 @@ export const ReportsPlanilla: React.FC = () => {
       month: "",
       year: new Date().getFullYear().toString(),
       authorization_status: "",
+      category_id: "",
     });
   };
 
@@ -118,7 +142,7 @@ export const ReportsPlanilla: React.FC = () => {
   const handleDeleteSelected = async () => {
     if (selected.size === 0) return;
     const confirm = window.confirm(
-      `Eliminar ${selected.size} reporte(s) seleccionados? Esta acción no se puede deshacer.`,
+      `Eliminar ${selected.size} reporte(s) seleccionados? Esta acción no se puede deshacer.`
     );
     if (!confirm) return;
 
@@ -132,13 +156,13 @@ export const ReportsPlanilla: React.FC = () => {
             return apiService.softDeleteSensoryEvaluation(r.evaluation_id);
           }
           return apiService.softDeleteSurvey(r.evaluation_id);
-        }),
+        })
       );
 
       const failures = results.filter(
         (res) =>
           res.status === "rejected" &&
-          !(res.reason instanceof Error && res.reason.message?.includes("404")),
+          !(res.reason instanceof Error && res.reason.message?.includes("404"))
       );
 
       if (failures.length > 0) {
@@ -150,7 +174,7 @@ export const ReportsPlanilla: React.FC = () => {
       setDeleteError(
         err instanceof Error
           ? err.message
-          : "Error al eliminar los reportes seleccionados",
+          : "Error al eliminar los reportes seleccionados"
       );
     } finally {
       setDeleting(false);
@@ -172,8 +196,8 @@ export const ReportsPlanilla: React.FC = () => {
         {status === "approved"
           ? "✅ Aprobado"
           : status === "rejected"
-            ? "❌ Rechazado"
-            : "⏳ Pendiente"}
+          ? "❌ Rechazado"
+          : "⏳ Pendiente"}
       </span>
     );
   };
@@ -311,8 +335,32 @@ export const ReportsPlanilla: React.FC = () => {
               </select>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Categoría
+              </label>
+              <select
+                value={filters.category_id}
+                onChange={(e) =>
+                  setFilters({
+                    ...filters,
+                    category_id: e.target.value,
+                  })
+                }
+                className="w-full px-4 py-2 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Todas</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex items-end">
               <button
+                type="button"
                 onClick={clearFilters}
                 className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
               >
@@ -449,7 +497,7 @@ export const ReportsPlanilla: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-center text-gray-600">
                         {new Date(report.generated_at).toLocaleDateString(
-                          "es-ES",
+                          "es-ES"
                         )}
                         <div className="text-xs text-gray-500">
                           {report.report_month_name}
@@ -470,7 +518,7 @@ export const ReportsPlanilla: React.FC = () => {
                               "number"
                                 ? report.winning_formula_percentage.toFixed(1)
                                 : parseFloat(
-                                    report.winning_formula_percentage,
+                                    report.winning_formula_percentage
                                   ).toFixed(1)}
                               %
                             </span>

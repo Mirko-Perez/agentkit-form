@@ -325,7 +325,8 @@ export class ReportController {
         project_name,
         month,
         year,
-        authorization_status 
+        authorization_status,
+        category_id
       } = req.query;
 
       // Build query with filters
@@ -382,6 +383,12 @@ export class ReportController {
         paramIndex++;
       }
 
+      if (category_id) {
+        queryStr += ` AND rp.category_id = $${paramIndex}`;
+        params.push(category_id);
+        paramIndex++;
+      }
+
       queryStr += ' ORDER BY gr.generated_at DESC';
 
       const result = await query(queryStr, params);
@@ -396,7 +403,8 @@ export class ReportController {
           project_name: project_name || null,
           month: month || null,
           year: year || null,
-          authorization_status: authorization_status || null
+          authorization_status: authorization_status || null,
+          category_id: category_id || null
         }
       });
     } catch (error) {

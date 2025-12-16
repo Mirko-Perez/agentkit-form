@@ -77,7 +77,13 @@ SELECT
         WHEN gr.report_type = 'sensory' THEN
             jsonb_array_length(gr.report_data->'products')
         ELSE NULL
-    END as total_products
+    END as total_products,
+    -- Extract category_id from surveys or sensory_evaluations
+    COALESCE(
+        (SELECT category_id FROM surveys WHERE id = gr.evaluation_id LIMIT 1),
+        (SELECT category_id FROM sensory_evaluations WHERE evaluation_id = gr.evaluation_id LIMIT 1),
+        NULL
+    ) as category_id
 FROM generated_reports gr
 WHERE gr.is_valid = true;
 
