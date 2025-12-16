@@ -225,7 +225,7 @@ export const ReportsPlanilla: React.FC = () => {
                 onChange={(e) =>
                   setFilters({ ...filters, type: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Todos</option>
                 <option value="sensory">Evaluación Sensorial</option>
@@ -242,7 +242,7 @@ export const ReportsPlanilla: React.FC = () => {
                 onChange={(e) =>
                   setFilters({ ...filters, region: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Todas</option>
                 {regions.map((region) => (
@@ -262,7 +262,7 @@ export const ReportsPlanilla: React.FC = () => {
                 onChange={(e) =>
                   setFilters({ ...filters, month: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Todos</option>
                 {months.map((month) => (
@@ -283,7 +283,7 @@ export const ReportsPlanilla: React.FC = () => {
                 onChange={(e) =>
                   setFilters({ ...filters, year: e.target.value })
                 }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 min="2020"
                 max={new Date().getFullYear() + 1}
               />
@@ -301,28 +301,13 @@ export const ReportsPlanilla: React.FC = () => {
                     authorization_status: e.target.value,
                   })
                 }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Todos</option>
                 <option value="approved">Aprobado</option>
                 <option value="pending">Pendiente</option>
                 <option value="rejected">Rechazado</option>
               </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Proyecto
-              </label>
-              <input
-                type="text"
-                value={filters.project_name}
-                onChange={(e) =>
-                  setFilters({ ...filters, project_name: e.target.value })
-                }
-                placeholder="Ej: Solimar Boquillon"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
             </div>
 
             <div className="flex items-end">
@@ -395,9 +380,6 @@ export const ReportsPlanilla: React.FC = () => {
                     </th>
                     <th className="px-6 py-4 text-left text-sm font-bold">
                       Región
-                    </th>
-                    <th className="px-6 py-4 text-left text-sm font-bold">
-                      Proyecto
                     </th>
                     <th className="px-6 py-4 text-center text-sm font-bold">
                       Panelistas
@@ -508,8 +490,8 @@ export const ReportsPlanilla: React.FC = () => {
                         <Link
                           href={
                             report.report_type === "sensory"
-                              ? `/sensory-reports/${report.evaluation_id}`
-                              : `/reports/${report.evaluation_id}`
+                              ? `/sensory-reports?id=${report.evaluation_id}`
+                              : `/reports?id=${report.evaluation_id}`
                           }
                           className="text-blue-600 hover:text-blue-800 font-medium"
                         >

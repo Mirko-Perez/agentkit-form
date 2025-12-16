@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { FileImport } from '../../components/FileImport';
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { FileImport } from "../../components/FileImport";
 
 export default function ImportPage() {
   const router = useRouter();
@@ -10,7 +10,7 @@ export default function ImportPage() {
   const handleImportSuccess = (surveyId: string) => {
     // Redirect to the report page after successful import
     setTimeout(() => {
-      router.push(`/reports/${surveyId}`);
+      router.push(`/reports?id=${surveyId}`);
     }, 2000); // Give user time to see success message
   };
 

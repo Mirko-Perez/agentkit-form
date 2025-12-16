@@ -64,7 +64,7 @@ app.get('/health', (req, res) => {
 });
 
 // 2. Servir archivos estáticos del frontend
-const staticPath = path.join(__dirname, '../frontend/out');
+const staticPath = path.join(__dirname, '../../frontend/out');
 
 console.log('Directorio estático del frontend:', staticPath);
 if (existsSync(staticPath)) {

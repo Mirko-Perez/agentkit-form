@@ -5,7 +5,15 @@ import { useAuth } from "../contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-const regions = ["Perú", "Chile", "Venezuela", "España", "Colombia", "México", "Argentina"];
+const regions = [
+  "Perú",
+  "Chile",
+  "Venezuela",
+  "España",
+  "Colombia",
+  "México",
+  "Argentina",
+];
 const roles = [
   { value: "viewer", label: "Visualizador (Solo lectura)" },
   { value: "editor", label: "Editor (Crear y editar)" },
@@ -26,7 +34,9 @@ export const Register: React.FC = () => {
   const { register } = useAuth();
   const router = useRouter();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -90,8 +100,10 @@ export const Register: React.FC = () => {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Crear Cuenta</h1>
-          <p className="text-gray-600">Únete a AgentKit Survey Analytics</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Crear Cuenta
+          </h1>
+          <p className="text-gray-600">Únete a Survey Analytics</p>
         </div>
 
         {error && (
@@ -102,7 +114,10 @@ export const Register: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Nombre Completo
             </label>
             <input
@@ -112,13 +127,16 @@ export const Register: React.FC = () => {
               value={formData.name}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Juan Pérez"
             />
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Email
             </label>
             <input
@@ -128,13 +146,16 @@ export const Register: React.FC = () => {
               value={formData.email}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="tu@email.com"
             />
           </div>
 
           <div>
-            <label htmlFor="region" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="region"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Región
             </label>
             <select
@@ -143,7 +164,7 @@ export const Register: React.FC = () => {
               value={formData.region}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">Selecciona una región</option>
               {regions.map((region) => (
@@ -155,7 +176,10 @@ export const Register: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="role"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Rol
             </label>
             <select
@@ -164,7 +188,7 @@ export const Register: React.FC = () => {
               value={formData.role}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {roles.map((role) => (
                 <option key={role.value} value={role.value}>
@@ -178,7 +202,10 @@ export const Register: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Contraseña
             </label>
             <input
@@ -189,13 +216,16 @@ export const Register: React.FC = () => {
               onChange={handleChange}
               required
               minLength={6}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Mínimo 6 caracteres"
             />
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="confirmPassword"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Confirmar Contraseña
             </label>
             <input
@@ -205,7 +235,7 @@ export const Register: React.FC = () => {
               value={formData.confirmPassword}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Repite la contraseña"
             />
           </div>
@@ -229,7 +259,10 @@ export const Register: React.FC = () => {
         <div className="mt-6 text-center">
           <p className="text-gray-600">
             ¿Ya tienes cuenta?{" "}
-            <Link href="/login" className="text-blue-600 hover:text-blue-800 font-semibold">
+            <Link
+              href="/login"
+              className="text-blue-600 hover:text-blue-800 font-semibold"
+            >
               Inicia sesión aquí
             </Link>
           </p>
@@ -238,11 +271,3 @@ export const Register: React.FC = () => {
     </div>
   );
 };
-
-
-
-
-
-
-
-

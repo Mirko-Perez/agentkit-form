@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { apiService } from '../utils/api';
+import React, { useState, useCallback, useEffect } from "react";
+import { useDropzone } from "react-dropzone";
+import { apiService } from "../utils/api";
 
 interface FileImportProps {
   onImportSuccess: (surveyId: string) => void;
@@ -22,10 +22,10 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
     responses: number;
     insights: string[];
   } | null>(null);
-  
+
   // Category selection
   const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [loadingCategories, setLoadingCategories] = useState(true);
   const regions = ["Perú", "Chile", "Venezuela", "España"];
   const [selectedRegion, setSelectedRegion] = useState<string>("");
@@ -41,57 +41,61 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
       const data = await apiService.getCategories(true); // Get only active categories
       setCategories(data.categories || []);
     } catch (err) {
-      console.error('Error loading categories:', err);
+      console.error("Error loading categories:", err);
     } finally {
       setLoadingCategories(false);
     }
   };
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (!selectedCategory) {
-      setError('Por favor selecciona una categoría primero');
-      return;
-    }
-    if (!selectedRegion) {
-      setError('Por favor selecciona una región primero');
-      return;
-    }
-    if (acceptedFiles.length > 0) {
-      handleFileUpload(acceptedFiles[0]);
-    }
-  }, [selectedCategory, selectedRegion]);
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      if (!selectedCategory) {
+        setError("Por favor selecciona una categoría primero");
+        return;
+      }
+      if (!selectedRegion) {
+        setError("Por favor selecciona una región primero");
+        return;
+      }
+      if (acceptedFiles.length > 0) {
+        handleFileUpload(acceptedFiles[0]);
+      }
+    },
+    [selectedCategory, selectedRegion]
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.ms-excel': ['.xls'],
-      'text/csv': ['.csv'],
-      'application/csv': ['.csv']
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+        ".xlsx",
+      ],
+      "application/vnd.ms-excel": [".xls"],
+      "text/csv": [".csv"],
+      "application/csv": [".csv"],
     },
     maxFiles: 1,
     maxSize: 10 * 1024 * 1024, // 10MB
-    disabled: uploading
+    disabled: uploading,
   });
-
 
   const handleFileUpload = async (file: File) => {
     // Validate file type
     const allowedTypes = [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-      'application/vnd.ms-excel', // .xls
-      'text/csv',
-      'application/csv'
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+      "application/vnd.ms-excel", // .xls
+      "text/csv",
+      "application/csv",
     ];
 
     if (!allowedTypes.includes(file.type)) {
-      setError('Please select a valid Excel (.xlsx, .xls) or CSV file');
+      setError("Please select a valid Excel (.xlsx, .xls) or CSV file");
       return;
     }
 
     // Validate file size (10MB limit)
     if (file.size > 10 * 1024 * 1024) {
-      setError('File size must be less than 10MB');
+      setError("File size must be less than 10MB");
       return;
     }
 
@@ -103,7 +107,7 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
     try {
       // Simulate progress
       const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
+        setUploadProgress((prev) => {
           if (prev >= 90) {
             clearInterval(progressInterval);
             return prev;
@@ -114,9 +118,9 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
 
       // Create FormData with file and category
       const formData = new FormData();
-      formData.append('file', file);
-      if (selectedCategory) formData.append('category_id', selectedCategory);
-      if (selectedRegion) formData.append('region', selectedRegion);
+      formData.append("file", file);
+      if (selectedCategory) formData.append("category_id", selectedCategory);
+      if (selectedRegion) formData.append("region", selectedRegion);
 
       const result = await apiService.importFileWithCategory(formData);
 
@@ -126,12 +130,12 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
       setSuccess({
         surveyId: result.survey_id,
         responses: result.imported_responses,
-        insights: result.insights
+        insights: result.insights,
       });
 
       onImportSuccess(result.survey_id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -139,14 +143,14 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
   };
 
   const handleGoogleSheetsImport = async () => {
-    const sheetUrl = prompt('Enter Google Sheets URL:');
+    const sheetUrl = prompt("Enter Google Sheets URL:");
     if (!sheetUrl) return;
 
     try {
       await apiService.importFromGoogleSheets(sheetUrl);
-      alert('Google Sheets import feature is coming soon!');
+      alert("Google Sheets import feature is coming soon!");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed');
+      setError(err instanceof Error ? err.message : "Import failed");
     }
   };
 
@@ -175,7 +179,7 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="w-full px-3 py-2 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             required
           >
             <option value="">Selecciona una categoría</option>
@@ -200,7 +204,7 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
         <select
           value={selectedRegion}
           onChange={(e) => setSelectedRegion(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          className="w-full px-3 py-2 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           required
         >
           <option value="">Selecciona una región</option>
@@ -220,17 +224,19 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
         {...getRootProps()}
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
           isDragActive
-            ? 'border-blue-500 bg-blue-50'
-            : 'border-gray-300 hover:border-gray-400'
-        } ${uploading ? 'pointer-events-none opacity-50' : ''} ${
-          !selectedCategory ? 'border-yellow-400 bg-yellow-50' : ''
+            ? "border-blue-500 bg-blue-50"
+            : "border-gray-300 hover:border-gray-400"
+        } ${uploading ? "pointer-events-none opacity-50" : ""} ${
+          !selectedCategory ? "border-yellow-400 bg-yellow-50" : ""
         }`}
       >
         {uploading ? (
           <div className="space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             <div className="space-y-2">
-              <div className="text-sm font-medium text-gray-700">Uploading file...</div>
+              <div className="text-sm font-medium text-gray-700">
+                Uploading file...
+              </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
@@ -292,8 +298,16 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
-            <svg className="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            <svg
+              className="w-5 h-5 text-red-400 mr-2"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clipRule="evenodd"
+              />
             </svg>
             <span className="text-red-800 font-medium">Error:</span>
           </div>
@@ -305,15 +319,29 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
       {success && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center mb-3">
-            <svg className="w-5 h-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            <svg
+              className="w-5 h-5 text-green-400 mr-2"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clipRule="evenodd"
+              />
             </svg>
-            <span className="text-green-800 font-medium">Import Successful!</span>
+            <span className="text-green-800 font-medium">
+              Import Successful!
+            </span>
           </div>
 
           <div className="space-y-2 text-sm text-green-700">
-            <p><strong>Survey ID:</strong> {success.surveyId}</p>
-            <p><strong>Responses Imported:</strong> {success.responses}</p>
+            <p>
+              <strong>Survey ID:</strong> {success.surveyId}
+            </p>
+            <p>
+              <strong>Responses Imported:</strong> {success.responses}
+            </p>
           </div>
 
           {success.insights.length > 0 && (
@@ -321,7 +349,10 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
               <h4 className="text-green-800 font-medium mb-2">AI Insights:</h4>
               <ul className="space-y-1">
                 {success.insights.map((insight, index) => (
-                  <li key={index} className="text-green-700 text-sm flex items-start">
+                  <li
+                    key={index}
+                    className="text-green-700 text-sm flex items-start"
+                  >
                     <span className="mr-2">•</span>
                     {insight}
                   </li>
@@ -332,7 +363,7 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
 
           <div className="mt-4 flex space-x-3">
             <a
-              href={`/reports/${success.surveyId}`}
+              href={`/reports?id=${success.surveyId}`}
               className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               View Report

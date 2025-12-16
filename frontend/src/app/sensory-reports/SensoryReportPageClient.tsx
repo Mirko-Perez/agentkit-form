@@ -1,18 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { SensoryReportComponent } from '../../../components/SensoryReport';
-import { SensoryReport } from '../../../types/survey';
-import { apiService } from '../../../utils/api';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { SensoryReportComponent } from "../../components/SensoryReport";
+import { SensoryReport } from "../../types/survey";
+import { apiService } from "../../utils/api";
 
-export const dynamicParams = true; // Allow dynamic params for static export
-
-export default function ReportPage() {
-  const params = useParams();
-  const surveyId = params?.id as string;
-
+export default function SensoryReportPageClient() {
+  const searchParams = useSearchParams();
+  const evaluationId = searchParams?.get("id");
   const [report, setReport] = useState<SensoryReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,36 +16,47 @@ export default function ReportPage() {
 
   useEffect(() => {
     const loadReport = async () => {
-      if (!surveyId) {
-        setError('ID de evaluación no válido');
+      if (!evaluationId) {
+        setError("ID de evaluación no válido");
         setLoading(false);
         return;
       }
 
       try {
-        // Try as sensory report first
-        const reportData = await apiService.getSensoryReport(surveyId);
+        const reportData = await apiService.getSensoryReport(evaluationId);
         setReport(reportData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al cargar el reporte');
+        setError(
+          err instanceof Error ? err.message : "Error al cargar el reporte"
+        );
       } finally {
         setLoading(false);
       }
     };
 
     loadReport();
-  }, [surveyId]);
+  }, [evaluationId]);
 
   const regenerateReport = async () => {
-    if (!surveyId) return;
+    if (!evaluationId) return;
 
     setRegenerating(true);
 
     try {
-      const reportData = await apiService.getSensoryReport(surveyId);
+      // Force regeneration by adding a timestamp parameter to bypass cache
+      const response = await fetch(
+        `/api/reports/sensory/${evaluationId}?force=true&t=${Date.now()}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to regenerate report");
+      }
+
+      const reportData = await response.json();
       setReport(reportData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al regenerar el reporte');
+      setError(
+        err instanceof Error ? err.message : "Error al regenerar el reporte"
+      );
     } finally {
       setRegenerating(false);
     }
@@ -60,8 +67,12 @@ export default function ReportPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-6"></div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Generando Reporte</h2>
-          <p className="text-gray-600">Analizando preferencias y calculando estadísticas...</p>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            Generando Reporte
+          </h2>
+          <p className="text-gray-600">
+            Analizando preferencias y calculando estadísticas...
+          </p>
         </div>
       </div>
     );
@@ -72,7 +83,9 @@ export default function ReportPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8">
           <div className="text-6xl mb-6">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Error al Cargar Reporte</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">
+            Error al Cargar Reporte
+          </h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <Link
             href="/"
@@ -90,7 +103,9 @@ export default function ReportPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8">
           <div className="text-6xl mb-6">📊</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">No hay Datos</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">
+            No hay Datos
+          </h2>
           <p className="text-gray-600 mb-6">
             No se encontraron datos para esta evaluación sensorial.
           </p>
@@ -113,8 +128,18 @@ export default function ReportPage() {
             href="/"
             className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg
+              className="w-5 h-5 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
             Volver al Panel de Control
           </Link>
@@ -131,8 +156,18 @@ export default function ReportPage() {
               </>
             ) : (
               <>
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
                 </svg>
                 Actualizar Reporte
               </>

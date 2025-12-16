@@ -47,8 +47,12 @@ export const Login: React.FC = () => {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Iniciar Sesión</h1>
-          <p className="text-gray-600">Accede a tu cuenta de AgentKit</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Iniciar Sesión
+          </h1>
+          <p className="text-gray-600">
+            Accede a tu cuenta de Survey Analytics
+          </p>
         </div>
 
         {error && (
@@ -59,7 +63,10 @@ export const Login: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Email
             </label>
             <input
@@ -68,13 +75,16 @@ export const Login: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="admin o admin@gmail.com"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Contraseña
             </label>
             <input
@@ -83,7 +93,7 @@ export const Login: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border text-black border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="••••••••"
             />
           </div>
@@ -107,7 +117,10 @@ export const Login: React.FC = () => {
         <div className="mt-6 text-center">
           <p className="text-gray-600">
             ¿No tienes cuenta?{" "}
-            <Link href="/register" className="text-blue-600 hover:text-blue-800 font-semibold">
+            <Link
+              href="/register"
+              className="text-blue-600 hover:text-blue-800 font-semibold"
+            >
               Regístrate aquí
             </Link>
           </p>
@@ -122,4 +135,3 @@ export const Login: React.FC = () => {
     </div>
   );
 };
-
