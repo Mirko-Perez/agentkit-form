@@ -87,10 +87,57 @@ SELECT
 FROM generated_reports gr
 WHERE gr.is_valid = true;
 
+-- Create immutable functions for year and month extraction
+-- These functions are marked as IMMUTABLE so they can be used in indexes
+CREATE OR REPLACE FUNCTION extract_year_immutable(timestamp_val TIMESTAMP WITH TIME ZONE)
+RETURNS INTEGER AS $$
+BEGIN
+    RETURN EXTRACT(YEAR FROM timestamp_val)::INTEGER;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE STRICT;
+
+CREATE OR REPLACE FUNCTION extract_month_immutable(timestamp_val TIMESTAMP WITH TIME ZONE)
+RETURNS INTEGER AS $$
+BEGIN
+    RETURN EXTRACT(MONTH FROM timestamp_val)::INTEGER;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE STRICT;
+
 -- Create index on the view (PostgreSQL doesn't support indexes on views directly, 
 -- but we can create indexes on the underlying tables)
-CREATE INDEX IF NOT EXISTS idx_generated_reports_generated_at_month 
-ON generated_reports((EXTRACT(YEAR FROM generated_at)), (EXTRACT(MONTH FROM generated_at)));
+-- Using immutable functions for year and month extraction
+DO $$ 
+BEGIN
+    -- Index for year filtering (using immutable function)
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes 
+        WHERE indexname = 'idx_generated_reports_year'
+    ) THEN
+        CREATE INDEX idx_generated_reports_year 
+        ON generated_reports(extract_year_immutable(generated_at));
+    END IF;
+    
+    -- Index for month filtering (using immutable function)
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes 
+        WHERE indexname = 'idx_generated_reports_month'
+    ) THEN
+        CREATE INDEX idx_generated_reports_month 
+        ON generated_reports(extract_month_immutable(generated_at));
+    END IF;
+    
+    -- Composite index for year and month (both using immutable functions)
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes 
+        WHERE indexname = 'idx_generated_reports_generated_at_month'
+    ) THEN
+        CREATE INDEX idx_generated_reports_generated_at_month 
+        ON generated_reports(
+            extract_year_immutable(generated_at),
+            extract_month_immutable(generated_at)
+        );
+    END IF;
+END $$;
 
 -- Helper function to get reports by month
 CREATE OR REPLACE FUNCTION get_reports_by_month(
