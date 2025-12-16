@@ -14,14 +14,25 @@ import OpenAI from 'openai';
 /**
  * OpenAI client for sensory insights in this controller.
  * We initialize it conditionally to avoid crashing when OPENAI_API_KEY is not set.
+ * Supports Cloudflare proxy via OPENAI_PROXY_URL environment variable.
  */
 const openaiApiKey = process.env.OPENAI_API_KEY;
+const openaiProxyUrl = process.env.OPENAI_PROXY_URL; // e.g., 'https://orange-silence-9576.chiletecnologia2.workers.dev/v1'
 let openai: OpenAI | null = null;
 
 if (openaiApiKey) {
-  openai = new OpenAI({
+  const config: { apiKey: string; baseURL?: string } = {
     apiKey: openaiApiKey,
-  });
+  };
+
+  // If proxy URL is provided, use it as baseURL (Cloudflare proxy)
+  if (openaiProxyUrl) {
+    config.baseURL = openaiProxyUrl;
+    // eslint-disable-next-line no-console
+    console.log('[ReportController] Using Cloudflare proxy:', openaiProxyUrl);
+  }
+
+  openai = new OpenAI(config);
 } else {
   // eslint-disable-next-line no-console
   console.warn(

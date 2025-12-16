@@ -78,3 +78,4 @@ COMMENT ON COLUMN product_categories.is_active IS 'Indica si la categoría está
 
 
 
+
