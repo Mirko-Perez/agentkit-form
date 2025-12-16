@@ -1,11 +1,13 @@
-import React from 'react';
-import { QuestionStats } from '../types/survey';
+import type React from "react";
+import type { QuestionStats } from "../types/survey";
 
 interface QuestionStatsProps {
   stats: QuestionStats;
 }
 
-export const QuestionStatsComponent: React.FC<QuestionStatsProps> = ({ stats }) => {
+export const QuestionStatsComponent: React.FC<QuestionStatsProps> = ({
+  stats,
+}) => {
   const renderChart = () => {
     const entries = Object.entries(stats.response_distribution);
 
@@ -18,7 +20,10 @@ export const QuestionStatsComponent: React.FC<QuestionStatsProps> = ({ stats }) 
     return (
       <div className="space-y-2">
         {entries.map(([option, count]) => {
-          const percentage = stats.total_responses > 0 ? (count / stats.total_responses) * 100 : 0;
+          const percentage =
+            stats.total_responses > 0
+              ? (count / stats.total_responses) * 100
+              : 0;
           const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0;
 
           return (

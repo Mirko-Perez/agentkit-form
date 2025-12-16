@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { apiService } from "@/utils/api";
 
 interface ProductCategory {
@@ -246,10 +246,14 @@ export default function CategoriesManagement() {
 
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="category-name"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Nombre *
                 </label>
                 <input
+                  id="category-name"
                   type="text"
                   value={formData.name}
                   onChange={(e) =>
@@ -262,10 +266,14 @@ export default function CategoriesManagement() {
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="category-description"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Descripción
                 </label>
                 <textarea
+                  id="category-description"
                   value={formData.description}
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })

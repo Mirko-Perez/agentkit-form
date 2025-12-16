@@ -1,6 +1,6 @@
 export interface SurveyQuestion {
   id: string;
-  type: 'text' | 'multiple_choice' | 'rating' | 'yes_no';
+  type: "text" | "multiple_choice" | "rating" | "yes_no";
   question: string;
   options?: string[];
   required: boolean;

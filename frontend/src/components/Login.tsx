@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState("");

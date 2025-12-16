@@ -1,5 +1,5 @@
-import React from "react";
-import { SurveyReport } from "../types/survey";
+import type React from "react";
+import type { SurveyReport } from "../types/survey";
 
 interface SurveyReportProps {
   report: SurveyReport;
@@ -9,9 +9,9 @@ export const SurveyReportComponent: React.FC<SurveyReportProps> = ({
   report,
 }) => {
   // Encontrar estadísticas de respuestas para mostrar lo que hicieron los panelistas
-  const getResponseSummary = () => {
+  const _getResponseSummary = () => {
     const completedResponses = report.questions_stats.filter(
-      (stat) => stat.total_responses > 0
+      (stat) => stat.total_responses > 0,
     );
     return completedResponses.length;
   };

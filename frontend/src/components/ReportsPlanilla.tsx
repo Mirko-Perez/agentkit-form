@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import type React from "react";
+import { useEffect, useState } from "react";
 import { apiService } from "../utils/api";
 
 interface ReportPlanilla {
@@ -58,7 +59,7 @@ export const ReportsPlanilla: React.FC = () => {
     { value: "12", label: "Diciembre" },
   ];
 
-  const currentMonth = new Date().getMonth() + 1;
+  const _currentMonth = new Date().getMonth() + 1;
 
   useEffect(() => {
     loadReports();
@@ -117,7 +118,7 @@ export const ReportsPlanilla: React.FC = () => {
   const handleDeleteSelected = async () => {
     if (selected.size === 0) return;
     const confirm = window.confirm(
-      `Eliminar ${selected.size} reporte(s) seleccionados? Esta acción no se puede deshacer.`
+      `Eliminar ${selected.size} reporte(s) seleccionados? Esta acción no se puede deshacer.`,
     );
     if (!confirm) return;
 
@@ -131,13 +132,13 @@ export const ReportsPlanilla: React.FC = () => {
             return apiService.softDeleteSensoryEvaluation(r.evaluation_id);
           }
           return apiService.softDeleteSurvey(r.evaluation_id);
-        })
+        }),
       );
 
       const failures = results.filter(
         (res) =>
           res.status === "rejected" &&
-          !(res.reason instanceof Error && res.reason.message?.includes("404"))
+          !(res.reason instanceof Error && res.reason.message?.includes("404")),
       );
 
       if (failures.length > 0) {
@@ -149,7 +150,7 @@ export const ReportsPlanilla: React.FC = () => {
       setDeleteError(
         err instanceof Error
           ? err.message
-          : "Error al eliminar los reportes seleccionados"
+          : "Error al eliminar los reportes seleccionados",
       );
     } finally {
       setDeleting(false);
@@ -171,8 +172,8 @@ export const ReportsPlanilla: React.FC = () => {
         {status === "approved"
           ? "✅ Aprobado"
           : status === "rejected"
-          ? "❌ Rechazado"
-          : "⏳ Pendiente"}
+            ? "❌ Rechazado"
+            : "⏳ Pendiente"}
       </span>
     );
   };
@@ -448,7 +449,7 @@ export const ReportsPlanilla: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-center text-gray-600">
                         {new Date(report.generated_at).toLocaleDateString(
-                          "es-ES"
+                          "es-ES",
                         )}
                         <div className="text-xs text-gray-500">
                           {report.report_month_name}
@@ -469,7 +470,7 @@ export const ReportsPlanilla: React.FC = () => {
                               "number"
                                 ? report.winning_formula_percentage.toFixed(1)
                                 : parseFloat(
-                                    report.winning_formula_percentage
+                                    report.winning_formula_percentage,
                                   ).toFixed(1)}
                               %
                             </span>

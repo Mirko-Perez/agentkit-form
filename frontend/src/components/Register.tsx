@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 const regions = [
   "Perú",
@@ -35,7 +36,7 @@ export const Register: React.FC = () => {
   const router = useRouter();
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     setFormData({
       ...formData,
@@ -71,7 +72,7 @@ export const Register: React.FC = () => {
         formData.password,
         formData.name,
         formData.role,
-        formData.region
+        formData.region,
       );
       router.push("/");
     } catch (err) {
@@ -271,4 +272,3 @@ export const Register: React.FC = () => {
     </div>
   );
 };
-

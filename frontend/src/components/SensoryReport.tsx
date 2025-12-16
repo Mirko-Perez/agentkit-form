@@ -1,5 +1,5 @@
-import React from "react";
-import { SensoryReport } from "../types/survey";
+import type React from "react";
+import type { SensoryReport } from "../types/survey";
 
 interface SensoryReportProps {
   report: SensoryReport;
@@ -19,7 +19,7 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
   };
 
   const sortedByPreference = [...report.preference_analysis].sort(
-    (a, b) => b.percentage - a.percentage
+    (a, b) => b.percentage - a.percentage,
   );
 
   const topProducts = sortedByPreference.slice(0, 2);
@@ -29,7 +29,7 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
 
   const getProductFeedback = (productId: string) =>
     report.qualitative_feedback.product_specific_feedback?.find(
-      (p) => p.product_id === productId
+      (p) => p.product_id === productId,
     );
 
   const getPositionColor = (position: number) => {
@@ -179,8 +179,9 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                     <span>
                       Hay diferencias{" "}
                       <strong>estadísticamente significativas</strong> entre las
-                      muestras evaluadas ({formatPValue(
-                        report.statistical_analysis.friedman_test.p_value
+                      muestras evaluadas (
+                      {formatPValue(
+                        report.statistical_analysis.friedman_test.p_value,
                       )}
                       ).
                     </span>
@@ -338,7 +339,7 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                   <div className="flex items-center space-x-4">
                     <div
                       className={`w-12 h-12 rounded-full bg-gradient-to-r ${getPositionColor(
-                        index + 1
+                        index + 1,
                       )} flex items-center justify-center text-2xl`}
                     >
                       {getPositionIcon(index + 1)}
@@ -434,7 +435,9 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
               <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
                 <span className="font-medium text-gray-700">Valor p:</span>
                 <span className="font-bold text-blue-600">
-                  {formatPValue(report.statistical_analysis.friedman_test.p_value)}
+                  {formatPValue(
+                    report.statistical_analysis.friedman_test.p_value,
+                  )}
                 </span>
               </div>
               <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
@@ -675,10 +678,10 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                         index === 0
                           ? "bg-gradient-to-r from-yellow-50 to-yellow-100 border-l-4 border-yellow-400"
                           : index === 1
-                          ? "bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400"
-                          : index === 2
-                          ? "bg-gradient-to-r from-orange-50 to-orange-100 border-l-4 border-orange-400"
-                          : ""
+                            ? "bg-gradient-to-r from-gray-50 to-gray-100 border-l-4 border-gray-400"
+                            : index === 2
+                              ? "bg-gradient-to-r from-orange-50 to-orange-100 border-l-4 border-orange-400"
+                              : ""
                       }`}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -689,19 +692,19 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                                 index === 0
                                   ? "bg-gradient-to-r from-yellow-400 to-yellow-600"
                                   : index === 1
-                                  ? "bg-gradient-to-r from-gray-300 to-gray-500"
-                                  : index === 2
-                                  ? "bg-gradient-to-r from-orange-400 to-orange-600"
-                                  : "bg-gradient-to-r from-blue-400 to-blue-600"
+                                    ? "bg-gradient-to-r from-gray-300 to-gray-500"
+                                    : index === 2
+                                      ? "bg-gradient-to-r from-orange-400 to-orange-600"
+                                      : "bg-gradient-to-r from-blue-400 to-blue-600"
                               }`}
                             >
                               {index === 0
                                 ? "🥇"
                                 : index === 1
-                                ? "🥈"
-                                : index === 2
-                                ? "🥉"
-                                : index + 1}
+                                  ? "🥈"
+                                  : index === 2
+                                    ? "🥉"
+                                    : index + 1}
                             </div>
                             {index < 3 && (
                               <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
@@ -771,10 +774,10 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                             index === 0
                               ? "bg-gradient-to-r from-yellow-400 to-yellow-500 text-white border-yellow-600"
                               : index === 1
-                              ? "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-600"
-                              : index === 2
-                              ? "bg-gradient-to-r from-orange-400 to-orange-500 text-white border-orange-600"
-                              : "bg-gradient-to-r from-blue-400 to-blue-500 text-white border-blue-600"
+                                ? "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-600"
+                                : index === 2
+                                  ? "bg-gradient-to-r from-orange-400 to-orange-500 text-white border-orange-600"
+                                  : "bg-gradient-to-r from-blue-400 to-blue-500 text-white border-blue-600"
                           }`}
                         >
                           <span className="text-xl font-bold">
@@ -813,10 +816,10 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                         index === 0
                           ? "bg-gradient-to-r from-yellow-400 to-yellow-600"
                           : index === 1
-                          ? "bg-gradient-to-r from-gray-400 to-gray-600"
-                          : index === 2
-                          ? "bg-gradient-to-r from-orange-400 to-orange-600"
-                          : "bg-gradient-to-r from-blue-400 to-blue-600"
+                            ? "bg-gradient-to-r from-gray-400 to-gray-600"
+                            : index === 2
+                              ? "bg-gradient-to-r from-orange-400 to-orange-600"
+                              : "bg-gradient-to-r from-blue-400 to-blue-600"
                       }`}
                       style={{ width: `${product.percentage}%` }}
                     >
@@ -891,7 +894,7 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                           const content = line.replace(/^[-•]\s*/, "");
                           const formattedContent = content.replace(
                             /\*\*(.*?)\*\*/g,
-                            "<strong class=\"text-indigo-700\">$1</strong>"
+                            '<strong class="text-indigo-700">$1</strong>',
                           );
 
                           return isBullet ? (
@@ -1057,7 +1060,7 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                       )}
                     </div>
                   </div>
-                )
+                ),
               )}
             </div>
           ) : (
@@ -1121,7 +1124,7 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                           </div>
                         </div>
                       );
-                    }
+                    },
                   )}
                   {report.qualitative_feedback.top_positive_comments.length ===
                     0 && (
@@ -1190,7 +1193,7 @@ export const SensoryReportComponent: React.FC<SensoryReportProps> = ({
                           </div>
                         </div>
                       );
-                    }
+                    },
                   )}
                   {report.qualitative_feedback.top_negative_comments.length ===
                     0 && (

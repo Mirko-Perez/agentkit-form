@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import type React from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { apiService } from "../utils/api";
 
 interface User {
@@ -16,7 +17,13 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, role: string, region: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    name: string,
+    role: string,
+    region: string,
+  ) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -26,7 +33,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,63 +56,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/login`, {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/auth/login`,
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password }),
-      });
+      },
+    );
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Login failed");
-      }
-
-      const data = await response.json();
-      setToken(data.token);
-      setUser(data.user);
-      
-      // Store in localStorage
-      localStorage.setItem("auth_token", data.token);
-      localStorage.setItem("auth_user", JSON.stringify(data.user));
-      
-      // Set token in API service
-      apiService.setToken(data.token);
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Login failed");
     }
+
+    const data = await response.json();
+    setToken(data.token);
+    setUser(data.user);
+
+    // Store in localStorage
+    localStorage.setItem("auth_token", data.token);
+    localStorage.setItem("auth_user", JSON.stringify(data.user));
+
+    // Set token in API service
+    apiService.setToken(data.token);
   };
 
-  const register = async (email: string, password: string, name: string, role: string, region: string) => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/auth/register`, {
+  const register = async (
+    email: string,
+    password: string,
+    name: string,
+    role: string,
+    region: string,
+  ) => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/auth/register`,
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password, name, role, region }),
-      });
+      },
+    );
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Registration failed");
-      }
-
-      const data = await response.json();
-      setToken(data.token);
-      setUser(data.user);
-      
-      // Store in localStorage
-      localStorage.setItem("auth_token", data.token);
-      localStorage.setItem("auth_user", JSON.stringify(data.user));
-      
-      // Set token in API service
-      apiService.setToken(data.token);
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Registration failed");
     }
+
+    const data = await response.json();
+    setToken(data.token);
+    setUser(data.user);
+
+    // Store in localStorage
+    localStorage.setItem("auth_token", data.token);
+    localStorage.setItem("auth_user", JSON.stringify(data.user));
+
+    // Set token in API service
+    apiService.setToken(data.token);
   };
 
   const logout = () => {
@@ -144,12 +157,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-
-
-
-
-
-
-
-

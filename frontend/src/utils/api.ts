@@ -1,7 +1,15 @@
-import { Survey, SurveyResponse, SurveyReport, DashboardOverview, SensoryReport } from '../types/survey';
+import type {
+  DashboardOverview,
+  SensoryReport,
+  Survey,
+  SurveyReport,
+  SurveyResponse,
+} from "../types/survey";
 
 // Use relative URL when served from same server, otherwise use env var or default
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? '/api' : 'http://localhost:3001/api');
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== "undefined" ? "/api" : "http://localhost:3001/api");
 
 class ApiService {
   private token: string | null = null;
@@ -10,11 +18,14 @@ class ApiService {
     this.token = token;
   }
 
-  private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  private async request<T>(
+    endpoint: string,
+    options?: RequestInit,
+  ): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
 
     const isFormData =
-      typeof FormData !== 'undefined' && options?.body instanceof FormData;
+      typeof FormData !== "undefined" && options?.body instanceof FormData;
 
     const headers: HeadersInit = {
       ...options?.headers,
@@ -22,13 +33,13 @@ class ApiService {
 
     // Only set JSON content-type when we are NOT sending FormData
     if (!isFormData) {
-      (headers as any)['Content-Type'] =
-        (headers as any)['Content-Type'] || 'application/json';
+      (headers as any)["Content-Type"] =
+        (headers as any)["Content-Type"] || "application/json";
     }
 
     // Add authorization token if available
     if (this.token) {
-      (headers as any)['Authorization'] = `Bearer ${this.token}`;
+      (headers as any).Authorization = `Bearer ${this.token}`;
     }
 
     const config: RequestInit = {
@@ -41,12 +52,14 @@ class ApiService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.error || `HTTP error! status: ${response.status}`,
+        );
       }
 
       return await response.json();
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error("API request failed:", error);
       throw error;
     }
   }
@@ -57,8 +70,8 @@ class ApiService {
     description?: string;
     questions: any[];
   }): Promise<{ survey_id: string }> {
-    return this.request('/surveys', {
-      method: 'POST',
+    return this.request("/surveys", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -67,9 +80,12 @@ class ApiService {
     return this.request(`/surveys/${id}`);
   }
 
-  async submitResponse(surveyId: string, response: SurveyResponse): Promise<{ response_id: string }> {
+  async submitResponse(
+    surveyId: string,
+    response: SurveyResponse,
+  ): Promise<{ response_id: string }> {
     return this.request(`/surveys/${surveyId}/responses`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(response),
     });
   }
@@ -80,7 +96,7 @@ class ApiService {
   }
 
   async getDashboardOverview(): Promise<DashboardOverview> {
-    return this.request('/reports/dashboard');
+    return this.request("/reports/dashboard");
   }
 
   // Import endpoints
@@ -90,12 +106,12 @@ class ApiService {
     insights: string[];
   }> {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
-    return this.request('/import/file', {
-      method: 'POST',
+    return this.request("/import/file", {
+      method: "POST",
       body: formData,
-      headers: {} // Let browser set content-type for FormData
+      headers: {}, // Let browser set content-type for FormData
     });
   }
 
@@ -104,15 +120,18 @@ class ApiService {
     imported_responses: number;
     insights: string[];
   }> {
-    return this.request('/import/file', {
-      method: 'POST',
+    return this.request("/import/file", {
+      method: "POST",
       body: formData,
     });
   }
 
-  async importFromGoogleSheets(sheetUrl: string, sheetName?: string): Promise<any> {
-    return this.request('/import/google-sheets', {
-      method: 'POST',
+  async importFromGoogleSheets(
+    sheetUrl: string,
+    sheetName?: string,
+  ): Promise<any> {
+    return this.request("/import/google-sheets", {
+      method: "POST",
       body: JSON.stringify({ sheetUrl, sheetName }),
     });
   }
@@ -126,7 +145,7 @@ class ApiService {
     }>;
     total: number;
   }> {
-    return this.request('/import/history');
+    return this.request("/import/history");
   }
 
   // Sensory evaluation endpoints
@@ -137,13 +156,15 @@ class ApiService {
   // Soft delete endpoints
   async softDeleteSurvey(surveyId: string): Promise<{ message: string }> {
     return this.request(`/surveys/${surveyId}`, {
-      method: 'DELETE'
+      method: "DELETE",
     });
   }
 
-  async softDeleteSensoryEvaluation(evaluationId: string): Promise<{ message: string }> {
+  async softDeleteSensoryEvaluation(
+    evaluationId: string,
+  ): Promise<{ message: string }> {
     return this.request(`/sensory/evaluations/${evaluationId}`, {
-      method: 'DELETE'
+      method: "DELETE",
     });
   }
 
@@ -156,7 +177,7 @@ class ApiService {
     }>;
     total: number;
   }> {
-    return this.request('/sensory/evaluations');
+    return this.request("/sensory/evaluations");
   }
 
   // Reports planilla endpoints
@@ -180,14 +201,20 @@ class ApiService {
       });
     }
     const queryString = params.toString();
-    return this.request(`/reports/generated${queryString ? `?${queryString}` : ''}`);
+    return this.request(
+      `/reports/generated${queryString ? `?${queryString}` : ""}`,
+    );
   }
 
-  async getReportsByMonth(year: number, month: number, filters?: {
-    region?: string;
-    country?: string;
-    project_name?: string;
-  }): Promise<{
+  async getReportsByMonth(
+    year: number,
+    month: number,
+    filters?: {
+      region?: string;
+      country?: string;
+      project_name?: string;
+    },
+  ): Promise<{
     reports: Array<any>;
     total: number;
     month: string;
@@ -205,7 +232,10 @@ class ApiService {
     return this.request(`/reports/by-month?${params.toString()}`);
   }
 
-  async checkWinningFormula(evaluationId: string, threshold: number = 70): Promise<{
+  async checkWinningFormula(
+    evaluationId: string,
+    threshold: number = 70,
+  ): Promise<{
     evaluation_id: string;
     winner: {
       product_name: string;
@@ -216,23 +246,28 @@ class ApiService {
     all_products: Array<any>;
     recommendation: string;
   }> {
-    return this.request(`/reports/sensory/${evaluationId}/winning-formula?threshold=${threshold}`);
+    return this.request(
+      `/reports/sensory/${evaluationId}/winning-formula?threshold=${threshold}`,
+    );
   }
 
-  async authorizeReport(reportId: string, data: {
-    authorization_status: 'approved' | 'rejected' | 'pending';
-    winning_formula_threshold?: number;
-    notes?: string;
-    authorized_by?: string;
-    report_type?: string;
-  }): Promise<{
+  async authorizeReport(
+    reportId: string,
+    data: {
+      authorization_status: "approved" | "rejected" | "pending";
+      winning_formula_threshold?: number;
+      notes?: string;
+      authorized_by?: string;
+      report_type?: string;
+    },
+  ): Promise<{
     message: string;
     report_id: string;
     authorization_status: string;
     winning_formula_threshold: number;
   }> {
     return this.request(`/reports/${reportId}/authorize`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -249,7 +284,7 @@ class ApiService {
     }>;
     total: number;
   }> {
-    const params = activeOnly ? '?active_only=true' : '';
+    const params = activeOnly ? "?active_only=true" : "";
     return this.request(`/categories${params}`);
   }
 
@@ -274,32 +309,38 @@ class ApiService {
     message: string;
     category: any;
   }> {
-    return this.request('/categories', {
-      method: 'POST',
+    return this.request("/categories", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  async updateCategory(id: string, data: {
-    name?: string;
-    description?: string;
-    is_active?: boolean;
-  }): Promise<{
+  async updateCategory(
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      is_active?: boolean;
+    },
+  ): Promise<{
     message: string;
     category: any;
   }> {
     return this.request(`/categories/${id}`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(data),
     });
   }
 
-  async deleteCategory(id: string, hardDelete: boolean = false): Promise<{
+  async deleteCategory(
+    id: string,
+    hardDelete: boolean = false,
+  ): Promise<{
     message: string;
   }> {
-    const params = hardDelete ? '?hard_delete=true' : '';
+    const params = hardDelete ? "?hard_delete=true" : "";
     return this.request(`/categories/${id}${params}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   }
 
@@ -314,11 +355,14 @@ class ApiService {
       total_usage: number;
     }>;
   }> {
-    return this.request('/categories/stats/usage');
+    return this.request("/categories/stats/usage");
   }
 
   // Auth endpoints
-  async login(email: string, password: string): Promise<{
+  async login(
+    email: string,
+    password: string,
+  ): Promise<{
     token: string;
     user: {
       id: string;
@@ -329,8 +373,8 @@ class ApiService {
       country?: string;
     };
   }> {
-    return this.request('/auth/login', {
-      method: 'POST',
+    return this.request("/auth/login", {
+      method: "POST",
       body: JSON.stringify({ email, password }),
     });
   }
@@ -346,8 +390,8 @@ class ApiService {
     token: string;
     user: any;
   }> {
-    return this.request('/auth/register', {
-      method: 'POST',
+    return this.request("/auth/register", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
@@ -365,7 +409,7 @@ class ApiService {
       last_login?: string;
     };
   }> {
-    return this.request('/auth/profile');
+    return this.request("/auth/profile");
   }
 
   async updateProfile(data: {
@@ -376,8 +420,8 @@ class ApiService {
     message: string;
     user: any;
   }> {
-    return this.request('/auth/profile', {
-      method: 'PUT',
+    return this.request("/auth/profile", {
+      method: "PUT",
       body: JSON.stringify(data),
     });
   }
@@ -386,7 +430,7 @@ class ApiService {
     users: Array<any>;
     total: number;
   }> {
-    return this.request('/auth/users');
+    return this.request("/auth/users");
   }
 }
 

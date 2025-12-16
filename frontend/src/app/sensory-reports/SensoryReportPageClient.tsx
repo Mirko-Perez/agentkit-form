@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { SensoryReportComponent } from "../../components/SensoryReport";
-import { SensoryReport } from "../../types/survey";
+import type { SensoryReport } from "../../types/survey";
 import { apiService } from "../../utils/api";
 
 export default function SensoryReportPageClient() {
@@ -151,6 +151,7 @@ export default function SensoryReportPageClient() {
           </Link>
 
           <button
+            type="button"
             onClick={regenerateReport}
             disabled={regenerating}
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"

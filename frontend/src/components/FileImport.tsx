@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { apiService } from "../utils/api";
 
@@ -62,7 +63,7 @@ export const FileImport: React.FC<FileImportProps> = ({ onImportSuccess }) => {
         handleFileUpload(acceptedFiles[0]);
       }
     },
-    [selectedCategory, selectedRegion]
+    [selectedCategory, selectedRegion],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

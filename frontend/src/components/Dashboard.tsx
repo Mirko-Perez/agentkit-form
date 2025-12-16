@@ -1,7 +1,6 @@
-import React, { useState } from "react";
 import Link from "next/link";
-import { DashboardOverview } from "../types/survey";
-import { apiService } from "../utils/api";
+import type React from "react";
+import type { DashboardOverview } from "../types/survey";
 
 interface DashboardProps {
   data: DashboardOverview;
@@ -257,7 +256,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
                       <td className="py-4 px-6 text-gray-600">
                         {stat.last_response
                           ? new Date(stat.last_response).toLocaleDateString(
-                              "es-ES"
+                              "es-ES",
                             )
                           : "Sin respuestas"}
                       </td>

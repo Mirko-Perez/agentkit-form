@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
 import Link from "next/link";
-import { useAuth } from "../contexts/AuthContext";
 import { useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 export const Header: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -96,6 +97,7 @@ export const Header: React.FC = () => {
 
             <div className="relative">
               <button
+                type="button"
                 onClick={() => setShowMenu(!showMenu)}
                 className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 focus:outline-none"
               >
@@ -140,6 +142,7 @@ export const Header: React.FC = () => {
                     Mi Perfil
                   </Link>
                   <button
+                    type="button"
                     onClick={handleLogout}
                     className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                   >
