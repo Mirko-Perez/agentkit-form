@@ -252,10 +252,9 @@ La aplicación utiliza OpenAI AgentKit para:
 3. **Crear resúmenes**: Reportes ejecutivos automáticos
 4. **Análisis de texto**: Procesamiento de respuestas abiertas
 
-## 📈 Desarrollo Futuro
+## 🚀 Despliegue
 
-- [ ] Autenticación y autorización de usuarios
-- [ ] Exportación de reportes (PDF/Excel)
+Ver [DEPLOY.md](./DEPLOY.md) para instrucciones de despliegue en producción.
 - [ ] Plantillas de encuestas predefinidas
 - [ ] Integración con servicios de email
 - [ ] Análisis en tiempo real

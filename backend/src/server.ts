@@ -16,10 +16,7 @@ import authRoutes from './routes/auth.routes';
 import categoryRoutes from './routes/category.routes';
 
 // Load environment variables
-dotenv.config({ 
-  // Silenciar mensajes informativos en producción
-  debug: process.env.NODE_ENV === 'development' 
-});
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -29,7 +26,7 @@ app.use(helmet({
   contentSecurityPolicy: false, // Disable CSP for static files
 }));
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*', // Allow all origins when serving from same server
+  origin: '*',
   credentials: true
 }));
 
@@ -47,11 +44,6 @@ app.use(morgan('combined'));
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
-});
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -72,12 +64,8 @@ const staticPaths = [
 ];
 
 staticPaths.forEach(staticPath => {
-  console.log('Directorio estático del frontend:', staticPath);
   if (existsSync(staticPath)) {
     app.use(express.static(staticPath));
-    console.log('✅ Frontend estático encontrado y servido desde:', staticPath);
-  } else {
-    console.log('⚠️  Frontend estático no encontrado en:', staticPath);
   }
 });
 
@@ -98,8 +86,7 @@ app.get('*', (req, res) => {
   if (existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    console.error('Archivo index.html no encontrado en:', indexPath);
-    res.status(404).send('Frontend no encontrado. Ejecuta: npm run build:all');
+    res.status(404).send('Frontend no encontrado');
   }
 });
 
@@ -108,13 +95,12 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   console.error(err.stack);
   res.status(500).json({
     error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+    message: err.message || 'Something went wrong'
   });
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`Server running on port ${PORT}`);
 });
 
 export default app;

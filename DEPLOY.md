@@ -1,109 +1,68 @@
-# 🚀 Despliegue - EMCOPRE Análisis Sensorial
+# 🚀 Despliegue - emcopre.fritzvzla.com
 
-## 📋 Lo que tienes
+## Configuración Rápida
 
-- **Backend**: Express.js con TypeScript
-- **Frontend**: Next.js (ya compilado estáticamente)
-- **Base de datos**: PostgreSQL con 9 archivos de migración
-- **Puerto único**: Todo funciona en puerto 3001
+### 1. Variables de Entorno
 
-## 🛠️ Pasos para desplegar
+Crea `backend/.env`:
 
-### 1. Instalar dependencias del sistema
-```bash
-# Node.js 18+ y PostgreSQL
-sudo apt update
-sudo apt install -y nodejs npm postgresql postgresql-contrib
+```env
+NODE_ENV=production
+FRONTEND_URL=https://emcopre.fritzvzla.com
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=agentkit_form
+DB_USER=postgres
+DB_PASSWORD=tu_password
+OPENAI_API_KEY=tu_api_key
+OPENAI_PROXY_URL=https://orange-silence-9576.chiletecnologia2.workers.dev/v1
+JWT_SECRET=tu_jwt_secret
+JWT_EXPIRES_IN=24h
 ```
 
-### 2. Configurar base de datos
-```bash
-# Crear base de datos
-sudo -u postgres createdb emcopre_analisis_sensorial
+**Nota**: `PORT` no es necesario - IIS lo define en Site Bindings.
 
-# Ejecutar migraciones en orden
-cd backend
-psql -d emcopre_analisis_sensorial -f database/sensory_tables.sql
-psql -d emcopre_analisis_sensorial -f database/auth_tables.sql
-psql -d emcopre_analisis_sensorial -f database/migrations_add_region_project.sql
-psql -d emcopre_analisis_sensorial -f database/product_categories.sql
-psql -d emcopre_analisis_sensorial -f database/iso_5495_critical_values.sql
-psql -d emcopre_analisis_sensorial -f database/fix_sensory_tables.sql
-psql -d emcopre_analisis_sensorial -f database/reports_table_view.sql
-```
+### 2. Construir
 
-### 3. Configurar variables de entorno
-```bash
-cd backend
-cp env.example .env
-nano .env  # Editar con tus valores reales
-```
-
-### 4. Instalar dependencias del proyecto
 ```bash
 cd backend
 npm install
-
-cd ../frontend
-npm install
+npm run build:all
 ```
 
-### 5. Construir para producción
-```bash
-cd backend
-npm run build:all  # Construye frontend + backend
-```
+### 3. Configurar IIS
 
-### 6. Iniciar aplicación
-```bash
-cd backend
-npm start  # Puerto 3001
-```
+1. **IIS Manager** → Crear/editar sitio
+2. **Physical Path**: `C:\site\agentkit-form\backend`
+3. **Binding** (IMPORTANTE):
+   - Type: https
+   - Port: **443** (puerto HTTPS estándar - NO uses 9905)
+   - Host: emcopre.fritzvzla.com
+   - SSL Certificate: Tu certificado
 
-### 7. Verificar funcionamiento
-```bash
-# Health check
-curl http://localhost:3001/health
+**⚠️ CORRECCIÓN IMPORTANTE:**
+- Si configuraste el puerto **9905** en IIS, cámbialo a **443**
+- IIS debe escuchar en **443** (puerto HTTPS estándar)
+- El puerto 9905 es solo para Node.js directo (sin iisnode)
+- Con iisnode, IIS maneja el puerto 443 y redirige internamente a Node.js
 
-# Verificar frontend
-curl -s http://localhost:3001/ | head -5
-```
+### 4. Archivos Necesarios en `backend/`
 
-## 🎯 URLs de acceso
+- ✅ `web.config`
+- ✅ `run.cjs`
+- ✅ `dist/server.js` (generado con `npm run build`)
+- ✅ `node_modules/` (instalado con `npm install`)
+- ✅ Archivos estáticos del frontend (index.html, _next/, etc.)
 
-- **Aplicación**: `http://tu-servidor:3001`
-- **Health check**: `http://tu-servidor:3001/health`
-- **APIs**: `http://tu-servidor:3001/api/*`
+### 5. Verificar
 
-## 🔑 Credenciales por defecto
+- https://emcopre.fritzvzla.com/health
+- https://emcopre.fritzvzla.com/
 
-- **Usuario**: admin@gmail.com
-- **Contraseña**: admin123
+## Troubleshooting
 
-## 🔧 Para producción con PM2
+**Error 500**: Verifica logs en `backend/iisnode/stderr.log`
 
-```bash
-npm install -g pm2
-cd backend
-pm2 start dist/server.js --name emcopre-app
-pm2 save
-pm2 startup
-```
+**API no responde**: Verifica que `web.config` tenga la regla `APIRoutes`
 
-## 📊 Verificar que todo funciona
-
-1. ✅ Health check responde
-2. ✅ Frontend carga (HTML visible)
-3. ✅ Login funciona
-4. ✅ Puedes subir archivos CSV
-5. ✅ Se generan reportes
-6. ✅ Planilla de reportes funciona
-
----
-
-**¡Eso es todo!** La aplicación usa un solo puerto y un solo proceso. 🎉
-
-
-
-
-
+**Frontend no carga**: Ejecuta `npm run build:all` para generar archivos estáticos

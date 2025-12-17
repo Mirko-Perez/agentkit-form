@@ -6,12 +6,7 @@ import type {
   SurveyResponse,
 } from "../types/survey";
 
-// Use relative URL when served from same server, otherwise use env var or default
-// In browser: use relative path /api (same origin)
-// In SSR/build: use env var or default to localhost:3001
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== "undefined" ? "/api" : "http://localhost:4044/api");
+const API_BASE_URL = typeof window !== "undefined" ? "/api" : (process.env.NEXT_PUBLIC_API_URL || "/api");
 
 class ApiService {
   private token: string | null = null;

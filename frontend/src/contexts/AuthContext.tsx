@@ -56,11 +56,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Use relative path in browser (works with any port when served from same server)
-    // Only use absolute URL in SSR/build time (development only)
     const apiUrl =
-      process.env.NEXT_PUBLIC_API_URL ||
-      (typeof window !== "undefined" ? "/api" : "http://localhost:4044/api");
+      typeof window !== "undefined"
+        ? "/api"
+        : process.env.NEXT_PUBLIC_API_URL || "/api";
     const response = await fetch(`${apiUrl}/auth/login`, {
       method: "POST",
       headers: {
@@ -93,11 +92,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     role: string,
     region: string
   ) => {
-    // Use relative path in browser (works with any port when served from same server)
-    // Only use absolute URL in SSR/build time (development only)
     const apiUrl =
-      process.env.NEXT_PUBLIC_API_URL ||
-      (typeof window !== "undefined" ? "/api" : "http://localhost:4044/api");
+      typeof window !== "undefined"
+        ? "/api"
+        : process.env.NEXT_PUBLIC_API_URL || "/api";
     const response = await fetch(`${apiUrl}/auth/register`, {
       method: "POST",
       headers: {
