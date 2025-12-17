@@ -16,7 +16,10 @@ import authRoutes from './routes/auth.routes';
 import categoryRoutes from './routes/category.routes';
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ 
+  // Silenciar mensajes informativos en producción
+  debug: process.env.NODE_ENV === 'development' 
+});
 
 const app = express();
 const PORT = process.env.PORT || 3001;

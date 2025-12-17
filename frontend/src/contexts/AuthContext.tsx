@@ -22,7 +22,7 @@ interface AuthContextType {
     password: string,
     name: string,
     role: string,
-    region: string,
+    region: string
   ) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
@@ -56,16 +56,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/auth/login`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+    // Use relative path in browser (works with any port when served from same server)
+    // Only use absolute URL in SSR/build time (development only)
+    const apiUrl =
+      process.env.NEXT_PUBLIC_API_URL ||
+      (typeof window !== "undefined" ? "/api" : "http://localhost:4044/api");
+    const response = await fetch(`${apiUrl}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({ email, password }),
+    });
 
     if (!response.ok) {
       const error = await response.json();
@@ -89,18 +91,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     password: string,
     name: string,
     role: string,
-    region: string,
+    region: string
   ) => {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/auth/register`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password, name, role, region }),
+    // Use relative path in browser (works with any port when served from same server)
+    // Only use absolute URL in SSR/build time (development only)
+    const apiUrl =
+      process.env.NEXT_PUBLIC_API_URL ||
+      (typeof window !== "undefined" ? "/api" : "http://localhost:4044/api");
+    const response = await fetch(`${apiUrl}/auth/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({ email, password, name, role, region }),
+    });
 
     if (!response.ok) {
       const error = await response.json();

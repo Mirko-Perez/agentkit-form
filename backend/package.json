@@ -5,11 +5,11 @@
   "scripts": {
     "dev": "nodemon --exec ts-node src/server.ts",
     "build": "tsc",
-    "build:frontend": "cd ../frontend && npm install && npm run build && cp -r out/* ../backend/ 2>/dev/null || true",
+    "build:frontend": "cd ../frontend && npm install && npm run build && cd ../backend && node scripts/copy-frontend.js",
     "build:all": "npm run build:frontend && npm run build",
     "deploy": "npm run build:all && npm run start:prod",
     "start": "node dist/server.js",
-    "start:prod": "cross-env NODE_ENV=production node dist/server.js",
+    "start:prod": "npx cross-env NODE_ENV=production node dist/server.js",
     "db:init": "psql -d $DB_NAME -f database/init.sql",
     "db:create": "createdb $DB_NAME || echo 'Database already exists'",
     "db:setup": "npm run db:create && npm run db:init",

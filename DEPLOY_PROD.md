@@ -19,16 +19,56 @@ Asegúrate de tener configurado `.env` en el directorio `backend/`:
 cp backend/env.example backend/.env
 
 # Editar con tus valores reales
-nano backend/.env
+nano backend/.env  # Linux/Mac
+# o
+notepad backend\.env  # Windows
 ```
 
+**⚠️ IMPORTANTE - Configuración de Puerto:**
+
+En Windows, NO uses puertos privilegiados (80, 443) directamente. Usa un puerto alto:
+
+```env
+# ✅ CORRECTO (puerto alto, no requiere permisos de admin)
+PORT=4044
+
+# ❌ INCORRECTO (requiere ejecutar como administrador)
+PORT=443
+PORT=80
+```
+
+**⚠️ IMPORTANTE - URL del Frontend:**
+
+El `FRONTEND_URL` en el backend es solo para CORS. El frontend usa rutas relativas (`/api`) cuando se sirve desde el mismo servidor, así que NO necesitas configurar `NEXT_PUBLIC_API_URL` a menos que el frontend esté en un servidor diferente.
+
+**Para producción con HTTPS:**
+- Usa un proxy reverso (nginx, IIS) que escuche en 443
+- Node.js escucha en un puerto alto (4044, 8080, etc.)
+- El proxy redirige el tráfico a Node.js
+
 Variables importantes:
-- `PORT=80` o `PORT=443` para producción
+- `PORT=3001` o `PORT=8080` (puertos altos, no requieren permisos de admin)
+  - ⚠️ **NO uses 80 o 443 directamente** - requieren permisos de administrador
+  - Para HTTPS en producción, usa un proxy reverso (nginx, IIS, etc.)
 - `NODE_ENV=production`
-- `FRONTEND_URL=https://emcopre.fritzvzla.com`
+- `FRONTEND_URL=https://emcopre.fritzvzla.com` (o la URL de tu servidor)
 - Configuración de base de datos PostgreSQL
 
-### 2. Construir para Producción
+### 2. Instalar Dependencias (OBLIGATORIO - PRIMERO)
+
+**⚠️ CRÍTICO**: Debes instalar las dependencias ANTES de hacer el build.
+
+```bash
+cd backend
+npm install
+```
+
+Esto instalará:
+- TypeScript (necesario para compilar)
+- cross-env (para variables de entorno multiplataforma)
+- Todas las demás dependencias
+
+### 3. Construir para Producción
 
 **⚠️ IMPORTANTE**: El directorio `dist/` NO debe subirse al repositorio (está en `.gitignore`). 
 Debes generarlo en el servidor ejecutando el build.
@@ -37,9 +77,17 @@ Debes generarlo en el servidor ejecutando el build.
 
 ```bash
 cd backend
-npm install  # Instalar dependencias si es necesario
+
+# 1. PRIMERO: Instalar dependencias (si no lo hiciste antes)
+npm install
+
+# 2. LUEGO: Construir todo
 npm run build:all
 ```
+
+**Si el build falla con "tsc no se reconoce":**
+- Asegúrate de haber ejecutado `npm install` primero
+- TypeScript está en `devDependencies` y se instala con `npm install`
 
 Esto hará:
 1. Instalar dependencias del frontend
@@ -57,32 +105,30 @@ npm run build:all
 # Pero NO lo subas al repositorio Git
 ```
 
-### 3. Instalar dependencias (si es necesario)
-
-```bash
-cd backend
-npm install
-# Esto instalará cross-env que permite usar NODE_ENV en Windows y Linux
-```
-
 ### 4. Iniciar en Producción
 
 **Opción 1: Usando npm script (recomendado - funciona en Windows y Linux)**
 ```bash
 cd backend
+npm install  # Asegúrate de tener todas las dependencias instaladas
 npm run start:prod
 ```
 
 **Opción 2: Directamente con node (si NODE_ENV ya está en .env)**
 ```bash
 cd backend
+# NODE_ENV se leerá automáticamente del archivo .env
 node dist/server.js
 ```
 
-**Opción 3: En Windows (si no tienes cross-env)**
+**Opción 3: En Windows (si cross-env no funciona)**
 ```bash
 cd backend
-# Establecer variable de entorno en Windows
+# Establecer variable de entorno en Windows PowerShell
+$env:NODE_ENV="production"
+node dist/server.js
+
+# O en CMD:
 set NODE_ENV=production
 node dist/server.js
 ```
@@ -124,6 +170,78 @@ curl -s https://emcopre.fritzvzla.com/ | head -5
 - **Dominio**: https://emcopre.fritzvzla.com/
 
 ## 🔧 Solución de Problemas
+
+### Error: EACCES permission denied port 443 (o 80)
+
+**Problema**: Estás intentando usar un puerto privilegiado (< 1024) sin permisos de administrador.
+
+**Solución 1: Usar un puerto alto (recomendado para desarrollo/testing)**
+```bash
+# En backend/.env
+PORT=3001  # o 8080, 3000, etc.
+```
+
+**Solución 2: Ejecutar como administrador (solo si realmente necesitas 443)**
+```bash
+# En Windows PowerShell (como administrador)
+node dist/server.js
+```
+
+**Solución 3: Usar proxy reverso para producción (recomendado)**
+- Configura nginx o IIS como proxy reverso
+- El proxy escucha en 443 (HTTPS)
+- Node.js escucha en un puerto alto (ej: 3001)
+- El proxy redirige el tráfico a Node.js
+
+### Error: "tsc no se reconoce como comando"
+
+**Problema**: TypeScript no está instalado o las dependencias no están instaladas.
+
+**Solución:**
+```bash
+cd backend
+npm install  # Esto instala TypeScript y todas las dependencias
+npm run build  # Ahora debería funcionar
+```
+
+### Error: EPERM operation not permitted al copiar archivos
+
+**Problema**: Windows bloquea archivos que están en uso o hay problemas de permisos.
+
+**Solución:**
+```bash
+# El script ahora maneja estos errores automáticamente
+# Si persiste, cierra cualquier proceso que esté usando los archivos
+# o ejecuta como administrador:
+npm run build:all
+```
+
+### Error: EADDRINUSE port already in use
+
+**Problema**: El puerto ya está en uso por otro proceso.
+
+**Solución:**
+```bash
+# Windows: Encontrar y cerrar el proceso
+netstat -ano | findstr :4044
+taskkill /PID <PID_NUMBER> /F
+
+# O cambiar el puerto en .env
+PORT=3002
+```
+
+### Frontend sigue usando URL antigua (localhost:3001)
+
+**Problema**: El frontend compilado tiene hardcodeada la URL antigua.
+
+**Solución**: Recompilar el frontend después de los cambios:
+```bash
+cd backend
+npm run build:all
+# Esto recompilará el frontend con las rutas relativas correctas
+```
+
+**Nota**: El frontend ahora usa rutas relativas (`/api`) cuando se sirve desde el mismo servidor, así que funciona automáticamente sin necesidad de configurar `NEXT_PUBLIC_API_URL`.
 
 ### Frontend no carga
 ```bash
