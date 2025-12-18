@@ -17,7 +17,15 @@ import OpenAI from 'openai';
  * Supports Cloudflare proxy via OPENAI_PROXY_URL environment variable.
  */
 const openaiApiKey = process.env.OPENAI_API_KEY;
-const openaiProxyUrl = process.env.OPENAI_PROXY_URL; // e.g., 'https://orange-silence-9576.chiletecnologia2.workers.dev/v1'
+let openaiProxyUrl = process.env.OPENAI_PROXY_URL; // e.g., 'https://orange-silence-9576.chiletecnologia2.workers.dev/v1'
+
+// Ensure proxy URL ends with /v1 if provided
+if (openaiProxyUrl && !openaiProxyUrl.endsWith('/v1')) {
+  openaiProxyUrl = openaiProxyUrl.endsWith('/') 
+    ? openaiProxyUrl + 'v1' 
+    : openaiProxyUrl + '/v1';
+}
+
 let openai: OpenAI | null = null;
 
 if (openaiApiKey) {
@@ -29,14 +37,19 @@ if (openaiApiKey) {
   if (openaiProxyUrl) {
     config.baseURL = openaiProxyUrl;
     // eslint-disable-next-line no-console
-    console.log('[ReportController] Using Cloudflare proxy:', openaiProxyUrl);
+    console.log('[ReportController] ✅ Configurando OpenAI con Cloudflare proxy:', openaiProxyUrl);
+    // eslint-disable-next-line no-console
+    console.log('[ReportController] API Key configurada:', openaiApiKey.substring(0, 7) + '...');
+  } else {
+    // eslint-disable-next-line no-console
+    console.log('[ReportController] ⚠️  Usando conexión directa a OpenAI (sin proxy)');
   }
 
   openai = new OpenAI(config);
 } else {
   // eslint-disable-next-line no-console
   console.warn(
-    '[ReportController] OPENAI_API_KEY is not set. Sensory AI insights will use basic fallbacks.'
+    '[ReportController] ❌ OPENAI_API_KEY is not set. Sensory AI insights will use basic fallbacks.'
   );
 }
 
@@ -235,13 +248,26 @@ export class ReportController {
       // Generate AI insights for sensory evaluation
       let insights: string[] = [];
       try {
+        console.log('[ReportController] Starting AI insights generation...');
         insights = await this.generateSensoryInsights(evaluations, products, preferenceStats, statisticalAnalysis);
+        console.log('[ReportController] AI insights generated successfully:', insights.length, 'sections');
       } catch (error) {
-        console.warn('Could not generate AI insights for sensory evaluation:', error);
+        console.error('[ReportController] Error generating AI insights:', error);
+        if (error instanceof Error) {
+          console.error('[ReportController] Error message:', error.message);
+          console.error('[ReportController] Error stack:', error.stack);
+        }
+        if (error && typeof error === 'object' && 'status' in error) {
+          console.error('[ReportController] HTTP Status:', error.status);
+        }
+        if (error && typeof error === 'object' && 'code' in error) {
+          console.error('[ReportController] Error Code:', error.code);
+        }
         insights = [
           'Se realizó un análisis completo de las preferencias sensoriales de los panelistas.',
           'Los resultados muestran diferencias significativas entre los productos evaluados.',
-          'Se recomienda considerar los comentarios cualitativos para futuras mejoras.'
+          'Se recomienda considerar los comentarios cualitativos para futuras mejoras.',
+          `⚠️ Nota: El análisis con IA no está disponible. Error: ${error instanceof Error ? error.message : 'Error desconocido'}`
         ];
       }
 
@@ -1132,6 +1158,184 @@ export class ReportController {
   }
 
   /**
+   * Test OpenAI API connection (diagnostic endpoint)
+   */
+  static async testOpenAIConnection(req: Request, res: Response) {
+    try {
+      const apiKey = process.env.OPENAI_API_KEY;
+      let proxyUrl = process.env.OPENAI_PROXY_URL;
+
+      // Ensure proxy URL ends with /v1 if provided (same logic as initialization)
+      if (proxyUrl && !proxyUrl.endsWith('/v1')) {
+        proxyUrl = proxyUrl.endsWith('/') 
+          ? proxyUrl + 'v1' 
+          : proxyUrl + '/v1';
+      }
+
+      const diagnostics = {
+        config: {
+          hasApiKey: !!apiKey,
+          apiKeyPrefix: apiKey ? apiKey.substring(0, 7) + '...' : 'NOT SET',
+          hasProxy: !!proxyUrl,
+          proxyUrl: proxyUrl || 'NOT SET',
+          proxyUrlFormatted: proxyUrl || 'NOT SET (will use direct connection)',
+          nodeEnv: process.env.NODE_ENV || 'not set',
+        },
+        tests: [] as Array<{ name: string; status: 'success' | 'error'; message: string; duration?: number }>,
+      };
+
+      if (!apiKey) {
+        return res.status(200).json({
+          ...diagnostics,
+          error: 'OPENAI_API_KEY is not set in environment variables',
+          solution: 'Add OPENAI_API_KEY to your .env file or environment variables',
+        });
+      }
+
+      // Initialize OpenAI client (same logic as production)
+      const config: { apiKey: string; baseURL?: string } = {
+        apiKey: apiKey,
+      };
+
+      if (proxyUrl) {
+        config.baseURL = proxyUrl;
+        console.log('[Test] ✅ Usando Cloudflare proxy:', proxyUrl);
+      } else {
+        console.log('[Test] ⚠️  Usando conexión directa (sin proxy)');
+      }
+
+      const openai = new OpenAI(config);
+
+      // Test 1: Simple completion
+      try {
+        const startTime = Date.now();
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'user',
+              content: 'Say "Hello, OpenAI is working!" in Spanish',
+            },
+          ],
+          max_tokens: 50,
+        });
+
+        const duration = Date.now() - startTime;
+        const response = completion.choices[0]?.message?.content || 'No response';
+
+        diagnostics.tests.push({
+          name: 'Simple Chat Completion (gpt-3.5-turbo)',
+          status: 'success',
+          message: `Response: ${response}`,
+          duration,
+        });
+      } catch (error: any) {
+        diagnostics.tests.push({
+          name: 'Simple Chat Completion (gpt-3.5-turbo)',
+          status: 'error',
+          message: `Error: ${error.message}${error.status ? ` (Status: ${error.status})` : ''}${error.code ? ` (Code: ${error.code})` : ''}`,
+        });
+      }
+
+      // Test 2: GPT-4 Turbo Preview (used in production)
+      try {
+        const startTime = Date.now();
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4-turbo-preview',
+          messages: [
+            {
+              role: 'system',
+              content: 'Eres un analista de datos experto. Responde en ESPAÑOL.',
+            },
+            {
+              role: 'user',
+              content: 'Responde brevemente: ¿Está funcionando la API de OpenAI?',
+            },
+          ],
+          max_tokens: 100,
+          temperature: 0.7,
+        });
+
+        const duration = Date.now() - startTime;
+        const response = completion.choices[0]?.message?.content || 'No response';
+
+        diagnostics.tests.push({
+          name: 'GPT-4 Turbo Preview (production model)',
+          status: 'success',
+          message: `Response: ${response}`,
+          duration,
+        });
+      } catch (error: any) {
+        diagnostics.tests.push({
+          name: 'GPT-4 Turbo Preview (production model)',
+          status: 'error',
+          message: `Error: ${error.message}${error.status ? ` (Status: ${error.status})` : ''}${error.code ? ` (Code: ${error.code})` : ''}`,
+        });
+      }
+
+      // Test 3: Structured output (like production insights)
+      try {
+        const startTime = Date.now();
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4-turbo-preview',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'Eres un experto en evaluaciones sensoriales. Proporciona informes estructurados en ESPAÑOL usando marcadores EXACTOS: <<<CUANTITATIVO>>>, <<<MEJOR_OPCION>>>, <<<CUALITATIVO>>>, <<<MEJORAS>>>, <<<RESUMEN>>>',
+            },
+            {
+              role: 'user',
+              content: 'Genera un informe de prueba con estos marcadores',
+            },
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+        });
+
+        const duration = Date.now() - startTime;
+        const response = completion.choices[0]?.message?.content || 'No response';
+
+        // Check if markers are present
+        const markers = ['CUANTITATIVO', 'MEJOR_OPCION', 'CUALITATIVO', 'MEJORAS', 'RESUMEN'];
+        const foundMarkers = markers.filter(m => response.includes(`<<<${m}>>>`));
+
+        diagnostics.tests.push({
+          name: 'Structured Output (production format)',
+          status: 'success',
+          message: `Response length: ${response.length} chars. Markers found: ${foundMarkers.length}/${markers.length}`,
+          duration,
+        });
+      } catch (error: any) {
+        diagnostics.tests.push({
+          name: 'Structured Output (production format)',
+          status: 'error',
+          message: `Error: ${error.message}${error.status ? ` (Status: ${error.status})` : ''}${error.code ? ` (Code: ${error.code})` : ''}`,
+        });
+      }
+
+      const allPassed = diagnostics.tests.every(t => t.status === 'success');
+      const statusCode = allPassed ? 200 : 500;
+
+      res.status(statusCode).json({
+        ...diagnostics,
+        summary: {
+          total: diagnostics.tests.length,
+          passed: diagnostics.tests.filter(t => t.status === 'success').length,
+          failed: diagnostics.tests.filter(t => t.status === 'error').length,
+          allPassed,
+        },
+      });
+    } catch (error) {
+      console.error('Error in testOpenAIConnection:', error);
+      res.status(500).json({
+        error: 'Failed to test OpenAI connection',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  /**
    * Generate AI insights for sensory evaluation using the structured prompt format
    */
   private static async generateSensoryInsights(
@@ -1150,6 +1354,9 @@ export class ReportController {
     }
 
     try {
+      console.log('[ReportController] generateSensoryInsights: Starting...');
+      console.log('[ReportController] OpenAI client status:', openai ? 'Initialized' : 'NOT INITIALIZED');
+      
       // Organize comments by product and position (1°, 2°, 3°)
       const commentsByProductAndPosition: Record<string, {
         first: string[];
@@ -1234,6 +1441,12 @@ Entrega el resultado siguiendo los marcadores EXACTOS:
 <<<MEJORAS>>> 4-6 acciones concretas
 <<<RESUMEN>>> 1 párrafo ejecutivo`;
 
+      console.log('[ReportController] Intentando conectar vía:', openaiProxyUrl || 'Direct connection');
+      console.log('[ReportController] Sending request to OpenAI...');
+      console.log('[ReportController] Prompt length:', prompt.length, 'characters');
+      console.log('[ReportController] Using model: gpt-4-turbo-preview');
+      
+      const startTime = Date.now();
       const completion = await openai.chat.completions.create({
         model: "gpt-4-turbo-preview",
         messages: [
@@ -1250,7 +1463,11 @@ Entrega el resultado siguiendo los marcadores EXACTOS:
         temperature: 0.7
       });
 
+      const duration = Date.now() - startTime;
+      console.log('[ReportController] ✅ OpenAI response received in', duration, 'ms');
+      
       const insightsText = completion.choices[0]?.message?.content || '';
+      console.log('[ReportController] Response length:', insightsText.length, 'characters');
 
       // Parse using the explicit markers to keep sections intact
       const markers = [
@@ -1277,13 +1494,30 @@ Entrega el resultado siguiendo los marcadores EXACTOS:
         return paragraphs.length > 0 ? paragraphs : [insightsText];
       }
 
+      console.log('[ReportController] Parsed insights into', sections.length, 'sections');
       return sections;
     } catch (error) {
-      console.error('Error generating sensory insights:', error);
+      console.error('[ReportController] ❌ Error generando insights sensoriales:', error);
+      if (error instanceof Error) {
+        console.error('[ReportController] Mensaje de error:', error.message);
+        console.error('[ReportController] Stack trace:', error.stack);
+      }
+      if (error && typeof error === 'object') {
+        if ('status' in error) {
+          console.error('[ReportController] HTTP Status:', error.status);
+        }
+        if ('code' in error) {
+          console.error('[ReportController] Error Code:', error.code);
+        }
+        if ('response' in error) {
+          console.error('[ReportController] Error Response:', JSON.stringify(error.response, null, 2));
+        }
+      }
       return [
         'Se realizó un análisis completo de las preferencias sensoriales.',
         'Los resultados muestran patrones claros de preferencia entre los productos.',
-        'Se recomienda revisar los comentarios cualitativos para insights adicionales.'
+        'Se recomienda revisar los comentarios cualitativos para insights adicionales.',
+        `⚠️ Error al generar insights con IA: ${error instanceof Error ? error.message : 'Error desconocido'}`
       ];
     }
   }

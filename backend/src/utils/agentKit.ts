@@ -9,7 +9,15 @@ import { QuestionStats } from '../models/Report';
  * Supports Cloudflare proxy via OPENAI_PROXY_URL environment variable.
  */
 const openaiApiKey = process.env.OPENAI_API_KEY;
-const openaiProxyUrl = process.env.OPENAI_PROXY_URL; // e.g., 'https://orange-silence-9576.chiletecnologia2.workers.dev/v1'
+let openaiProxyUrl = process.env.OPENAI_PROXY_URL; // e.g., 'https://orange-silence-9576.chiletecnologia2.workers.dev/v1'
+
+// Ensure proxy URL ends with /v1 if provided
+if (openaiProxyUrl && !openaiProxyUrl.endsWith('/v1')) {
+  openaiProxyUrl = openaiProxyUrl.endsWith('/') 
+    ? openaiProxyUrl + 'v1' 
+    : openaiProxyUrl + '/v1';
+}
+
 let openai: OpenAI | null = null;
 
 if (openaiApiKey) {
@@ -21,14 +29,19 @@ if (openaiApiKey) {
   if (openaiProxyUrl) {
     config.baseURL = openaiProxyUrl;
     // eslint-disable-next-line no-console
-    console.log('[AgentKit] Using Cloudflare proxy:', openaiProxyUrl);
+    console.log('[AgentKit] ✅ Configurando OpenAI con Cloudflare proxy:', openaiProxyUrl);
+    // eslint-disable-next-line no-console
+    console.log('[AgentKit] API Key configurada:', openaiApiKey.substring(0, 7) + '...');
+  } else {
+    // eslint-disable-next-line no-console
+    console.log('[AgentKit] ⚠️  Usando conexión directa a OpenAI (sin proxy)');
   }
 
   openai = new OpenAI(config);
 } else {
   // eslint-disable-next-line no-console
   console.warn(
-    '[AgentKit] OPENAI_API_KEY is not set. AI-powered insights will be disabled and basic fallbacks will be used.'
+    '[AgentKit] ❌ OPENAI_API_KEY is not set. AI-powered insights will be disabled and basic fallbacks will be used.'
   );
 }
 
@@ -53,6 +66,9 @@ export class AgentKitService {
     try {
       const prompt = this.buildInsightsPrompt(survey, responses, stats);
 
+      console.log('[AgentKit] Intentando conectar vía:', openaiProxyUrl || 'Direct connection');
+      console.log('[AgentKit] Enviando solicitud a OpenAI...');
+
       const completion = await openai.chat.completions.create({
         model: "gpt-4-turbo-preview",
         messages: [
@@ -70,9 +86,19 @@ export class AgentKitService {
       });
 
       const insightsText = completion.choices[0]?.message?.content || '';
+      console.log('[AgentKit] ✅ Respuesta recibida de OpenAI, longitud:', insightsText.length, 'caracteres');
       return this.parseInsights(insightsText);
     } catch (error) {
-      console.error('Error generating insights with AgentKit:', error);
+      console.error('[AgentKit] ❌ Error generando insights:', error);
+      if (error instanceof Error) {
+        console.error('[AgentKit] Mensaje de error:', error.message);
+      }
+      if (error && typeof error === 'object' && 'status' in error) {
+        console.error('[AgentKit] HTTP Status:', error.status);
+      }
+      if (error && typeof error === 'object' && 'code' in error) {
+        console.error('[AgentKit] Error Code:', error.code);
+      }
       return ['No se pudieron generar insights en este momento.'];
     }
   }

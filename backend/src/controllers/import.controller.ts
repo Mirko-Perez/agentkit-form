@@ -68,8 +68,21 @@ export class ImportController {
         insights: insights
       });
     } catch (error) {
-      console.error('Error importing file:', error);
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('[ImportController] Error importing file:', error);
+      console.error('[ImportController] Error type:', error?.constructor?.name || typeof error);
+      console.error('[ImportController] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      
+      // Log more details for database errors
+      if (error && typeof error === 'object' && 'code' in error) {
+        console.error('[ImportController] Database error code:', error.code);
+      }
+      if (error && typeof error === 'object' && 'detail' in error) {
+        console.error('[ImportController] Database error detail:', error.detail);
+      }
+      if (error && typeof error === 'object' && 'constraint' in error) {
+        console.error('[ImportController] Database constraint:', error.constraint);
+      }
+      
       res.status(500).json({
         error: 'Failed to import file',
         details: error instanceof Error ? error.message : 'Unknown error',
@@ -149,48 +162,83 @@ export class ImportController {
   ): Promise<void> {
     const { evaluation_id, products, evaluations } = sensoryResult;
 
+    console.log('[ImportController] Saving to database:', {
+      evaluation_id,
+      productsCount: products.length,
+      evaluationsCount: evaluations.length,
+      categoryId,
+      region,
+      country,
+      projectName
+    });
+
     // Insert products
     for (const product of products) {
-      await query(
-        `INSERT INTO sensory_products (id, evaluation_id, name, code, description, position, is_deleted, region, project_name)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          product.id,
-          product.evaluation_id,
-          product.name,
-          product.code || null,
-          product.description || null,
-          product.position,
-          false,
-          region,
-          projectName
-        ]
-      );
+      try {
+        await query(
+          `INSERT INTO sensory_products (id, evaluation_id, name, code, description, position, is_deleted, region, project_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            product.id,
+            product.evaluation_id,
+            product.name,
+            product.code || null,
+            product.description || null,
+            product.position,
+            false,
+            region,
+            projectName
+          ]
+        );
+        console.log('[ImportController] Inserted product:', product.name);
+      } catch (error) {
+        console.error('[ImportController] Error inserting product:', product.name, error);
+        throw error;
+      }
     }
 
-    // Insert evaluations (panelist responses)
-    for (const evaluation of evaluations) {
-      await query(
-        `INSERT INTO sensory_evaluations (
-          id, evaluation_id, panelist_id, panelist_name, panelist_email,
-          preferences, submitted_at, is_deleted, category_id, region, country, project_name
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-        [
-          evaluation.id,
-          evaluation.evaluation_id,
-          evaluation.panelist_id,
-          evaluation.panelist_name || null,
-          evaluation.panelist_email || null,
-          JSON.stringify(evaluation.preferences),
-          evaluation.submitted_at,
-          false,
-          categoryId,
-          region,
-          country,
-          projectName
-        ]
-      );
+    // Insert evaluations (panelist responses) in batches for better performance
+    const batchSize = 50;
+    for (let i = 0; i < evaluations.length; i += batchSize) {
+      const batch = evaluations.slice(i, i + batchSize);
+      
+      for (const evaluation of batch) {
+        try {
+          await query(
+            `INSERT INTO sensory_evaluations (
+              id, evaluation_id, panelist_id, panelist_name, panelist_email,
+              preferences, submitted_at, is_deleted, category_id, region, country, project_name
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+            [
+              evaluation.id,
+              evaluation.evaluation_id,
+              evaluation.panelist_id,
+              evaluation.panelist_name || null,
+              evaluation.panelist_email || null,
+              JSON.stringify(evaluation.preferences),
+              evaluation.submitted_at,
+              false,
+              categoryId,
+              region,
+              country,
+              projectName
+            ]
+          );
+        } catch (error) {
+          console.error('[ImportController] Error inserting evaluation:', evaluation.id, error);
+          if (error && typeof error === 'object' && 'code' in error) {
+            console.error('[ImportController] Database error code:', error.code);
+          }
+          if (error && typeof error === 'object' && 'detail' in error) {
+            console.error('[ImportController] Database error detail:', error.detail);
+          }
+          throw error;
+        }
+      }
+      console.log(`[ImportController] Inserted batch ${Math.floor(i / batchSize) + 1} of evaluations`);
     }
+    
+    console.log('[ImportController] Successfully saved all data to database');
   }
 
   /**
