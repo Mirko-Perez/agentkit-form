@@ -11,12 +11,12 @@ NODE_ENV=production
 FRONTEND_URL=https://emcopre.fritzvzla.com
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=emcopre_analisis_sensorial
+DB_NAME=agentkit_form
 DB_USER=postgres
 DB_PASSWORD=tu_password
 OPENAI_API_KEY=tu_api_key
 OPENAI_PROXY_URL=https://orange-silence-9576.chiletecnologia2.workers.dev/v1
-JWT_SECRET=tu_jwt_secret_seguro
+JWT_SECRET=tu_jwt_secret
 JWT_EXPIRES_IN=24h
 ```
 
