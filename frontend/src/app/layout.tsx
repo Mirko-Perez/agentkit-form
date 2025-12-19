@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Survey Analytics",
+  title: "EMCOPRE",
   description:
     "Plataforma de análisis y reportes de encuestas impulsada por IA",
 };

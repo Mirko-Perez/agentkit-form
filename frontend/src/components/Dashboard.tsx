@@ -17,7 +17,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         {/* Header */}
         <div className="text-center py-8">
           <h1 className="text-5xl font-bold text-gray-900 mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Panel de Control de Encuestas
+            EMCOPRE
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Monitorea tus encuestas y analiza las respuestas con insights
@@ -256,7 +256,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
                       <td className="py-4 px-6 text-gray-600">
                         {stat.last_response
                           ? new Date(stat.last_response).toLocaleDateString(
-                              "es-ES",
+                              "es-ES"
                             )
                           : "Sin respuestas"}
                       </td>

@@ -487,9 +487,6 @@ export const ReportsPlanilla: React.FC = () => {
                       <td className="px-6 py-4 text-gray-700">
                         {report.region || "N/A"}
                       </td>
-                      <td className="px-6 py-4 text-gray-700">
-                        {report.project_name || "N/A"}
-                      </td>
                       <td className="px-6 py-4 text-center">
                         <span className="font-semibold text-gray-900">
                           {report.total_participants}

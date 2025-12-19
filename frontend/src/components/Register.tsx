@@ -36,7 +36,7 @@ export const Register: React.FC = () => {
   const router = useRouter();
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     setFormData({
       ...formData,
@@ -72,7 +72,7 @@ export const Register: React.FC = () => {
         formData.password,
         formData.name,
         formData.role,
-        formData.region,
+        formData.region
       );
       router.push("/");
     } catch (err) {
@@ -104,7 +104,7 @@ export const Register: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Crear Cuenta
           </h1>
-          <p className="text-gray-600">Únete a Survey Analytics</p>
+          <p className="text-gray-600">Únete a EMCOPRE</p>
         </div>
 
         {error && (
@@ -272,5 +272,3 @@ export const Register: React.FC = () => {
     </div>
   );
 };
-
-
