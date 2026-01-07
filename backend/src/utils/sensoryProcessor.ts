@@ -97,21 +97,25 @@ export class SensoryProcessor {
       throw new Error('Could not find preference column in file');
     }
 
-    // Extract sample codes from data
-    const sampleCodes = new Set<string>();
-    dataRows.forEach(row => {
-      const preferenceText = row[preferenceColIndex]?.toString() || '';
-      const match = preferenceText.match(/muestra\s*(\d+)/i) || preferenceText.match(/(\d+)/);
-      if (match) {
-        sampleCodes.add(match[1]);
-      }
-    });
+    // Extract sample codes from HEADERS first (more reliable)
+    let sampleCodes = this.extractSampleCodesFromHeaders(headers);
 
-    const samples = Array.from(sampleCodes);
+    // If not found in headers, try from data rows
+    if (sampleCodes.length < 2) {
+      const codesFromData = new Set<string>();
+      dataRows.forEach(row => {
+        const preferenceText = row[preferenceColIndex]?.toString() || '';
+        const codes = this.extractSampleCodesFromText(preferenceText);
+        codes.forEach(code => codesFromData.add(code));
+      });
+      sampleCodes = Array.from(codesFromData);
+    }
     
-    if (samples.length < 2) {
+    if (sampleCodes.length < 2) {
       throw new Error('Could not identify sample codes from data');
     }
+
+    const samples = sampleCodes;
 
     // Create products
     const products: SensoryProduct[] = samples.map((code, index) => ({
@@ -124,11 +128,11 @@ export class SensoryProcessor {
       is_deleted: false
     }));
 
-    // Find comment columns for each sample
+    // Find comment columns for each sample (case-insensitive)
     const commentColumns: Record<string, number> = {};
     samples.forEach(code => {
       const colIndex = headers.findIndex(h => 
-        h.toLowerCase().includes(`comentario`) && h.includes(code)
+        h.toLowerCase().includes(`comentario`) && h.toLowerCase().includes(code.toLowerCase())
       );
       if (colIndex !== -1) {
         commentColumns[code] = colIndex;
@@ -140,13 +144,16 @@ export class SensoryProcessor {
       .filter(row => row[preferenceColIndex]) // Has preference data
       .map((row, index) => {
         const preferenceText = row[preferenceColIndex]?.toString() || '';
-        const preferredMatch = preferenceText.match(/muestra\s*(\d+)/i) || preferenceText.match(/(\d+)/);
-        const preferredCode = preferredMatch ? preferredMatch[1] : samples[0];
+        // Extract all codes from preference text and find which one matches our samples
+        const extractedCodes = this.extractSampleCodesFromText(preferenceText);
+        const preferredCode = extractedCodes.find(code => 
+          samples.some(s => s.toLowerCase() === code.toLowerCase())
+        ) || samples[0];
 
         // Create preferences (winner = position 1, loser = position 2)
         const preferences: SensoryPreference[] = samples.map(code => ({
           product_id: `product_${evaluationId}_${code}`,
-          position: code === preferredCode ? 1 : 2,
+          position: code.toLowerCase() === preferredCode.toLowerCase() ? 1 : 2,
           reason: commentColumns[code] !== undefined ? row[commentColumns[code]]?.toString() || '' : ''
         }));
 
@@ -180,6 +187,80 @@ export class SensoryProcessor {
     // TO DO: Implement ranking test processing
     // For now, throw error
     throw new Error('Ranking test processing not yet implemented');
+  }
+
+  /**
+   * Extract sample codes from headers (more reliable method)
+   * Looks for patterns like: "Comentarios muestra XXX", "Califica Sabor XXX", "Observaciones XXX"
+   */
+  private static extractSampleCodesFromHeaders(headers: string[]): string[] {
+    const sampleCodes = new Set<string>();
+    
+    // Keywords that indicate a sample-related column (more specific)
+    const keywords = [
+      'comentario', 'observacion', 'califica', 'sabor', 'color', 'aroma', 
+      'textura', 'olor', 'apariencia'
+    ];
+
+    headers.forEach(header => {
+      const headerLower = header.toLowerCase();
+      
+      // Must contain at least one keyword AND contain "muestra" or a code pattern
+      const hasKeyword = keywords.some(kw => headerLower.includes(kw));
+      const hasSampleIndicator = headerLower.includes('muestra') || 
+                                 headerLower.includes('sample') ||
+                                 /\d{3,6}/.test(header); // or has numeric code
+      
+      if (!hasKeyword && !hasSampleIndicator) return;
+
+      // Extract codes from this header
+      const codes = this.extractSampleCodesFromText(header);
+      codes.forEach(code => {
+        // Additional validation: code should be reasonable length
+        if (code.length >= 2 && code.length <= 10) {
+          sampleCodes.add(code);
+        }
+      });
+    });
+
+    return Array.from(sampleCodes);
+  }
+
+  /**
+   * Extract sample codes from text using flexible patterns
+   * Supports: "Muestra XXX", "Sample XXX", "Código XXX", "M-XXX", etc.
+   */
+  private static extractSampleCodesFromText(text: string): string[] {
+    const codes: string[] = [];
+    const seen = new Set<string>();
+    
+    // Pattern 1: "Muestra/Sample/Código XXX" - most common and reliable
+    // Captures: 144, FRITZ, OSOLE, A-1, C03, etc.
+    const pattern1 = /(?:muestra|sample|código|codigo|cód)\s+([a-z0-9\-_#]+)/gi;
+    let match;
+    while ((match = pattern1.exec(text)) !== null) {
+      const code = match[1].toUpperCase().trim();
+      // Filter out common Spanish/English words
+      const commonWords = ['MAS', 'QUE', 'LAS', 'LOS', 'UNA', 'THE', 'AND', 'HAY'];
+      if (code && code.length >= 2 && code.length <= 20 && !commonWords.includes(code) && !seen.has(code)) {
+        codes.push(code);
+        seen.add(code);
+      }
+    }
+
+    // Pattern 2: Look for numeric codes (3-6 digits) - common in sensory tests
+    if (codes.length === 0) {
+      const pattern2 = /\b(\d{3,6})\b/g;
+      while ((match = pattern2.exec(text)) !== null) {
+        const code = match[1];
+        if (!seen.has(code)) {
+          codes.push(code);
+          seen.add(code);
+        }
+      }
+    }
+
+    return codes;
   }
 }
 
